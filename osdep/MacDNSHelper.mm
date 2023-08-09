@@ -343,5 +343,40 @@ bool MacDNSHelper::removeIps4(uint64_t nwid)
     return res;
 }
 
+bool MacDNSHelper::getDefaultRoute(char *buf) {
+    SCDynamicStoreRef ds = SCDynamicStoreCreate(NULL, CFSTR("ZeroTierOne"), NULL, NULL);
+    CFPropertyListRef propertyList = SCDynamicStoreCopyValue(ds, CFSTR("State:/Network/Global/IPv4"));
+
+    if (!propertyList && CFGetTypeID(propertyList) != CFDictionaryGetTypeID()) {
+        if (propertyList != NULL) {CFRelease(propertyList);}
+        CFRelease(ds);
+        return false;
+    }
+
+    CFDictionaryRef dict = (CFDictionaryRef)propertyList;
+
+
+    CFTypeRef routerObject = CFDictionaryGetValue(dict, CFSTR("Router"));
+
+    if (!routerObject && CFGetTypeID(routerObject) != CFStringGetTypeID()) {
+        if (propertyList != NULL) {CFRelease(propertyList);}
+        CFRelease(ds);
+        return false;
+    }
+
+    CFStringRef router = (CFStringRef)routerObject;
+
+    CFIndex length = CFStringGetLength(router);
+    CFIndex maxSize = CFStringGetMaximumSizeForEncoding(length, kCFStringEncodingUTF8) + 1;
+
+    CFStringGetCString(router, buf, maxSize, kCFStringEncodingUTF8);
+
+    if (propertyList != NULL) {CFRelease(propertyList);}
+    CFRelease(ds);
+
+    return true;
+}
+
+
 
 }
