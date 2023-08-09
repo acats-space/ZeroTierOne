@@ -873,6 +873,8 @@ class OneServiceImpl : public OneService {
 
 	// Last potential sleep/wake event
 	uint64_t _lastRestart;
+	char _lastDefaultGateway[255] = {};
+	bool gatewayChanged = false;
 
 	// Deadline for the next background task service function
 	volatile int64_t _nextBackgroundTaskDeadline;
@@ -1286,6 +1288,19 @@ class OneServiceImpl : public OneService {
 								syncManagedStuff(n->second, false, true, false);
 						}
 					}
+#ifdef __APPLE__
+					char buf[255];
+					MacDNSHelper::getDefaultRoute(buf);
+					if (strlen(_lastDefaultGateway) != 0 && strcmp(_lastDefaultGateway, buf) != 0) {
+						gatewayChanged = true;
+						// fprintf(stderr, "gw changed %i\n prev %s new %s", gatewayChanged, _lastDefaultGateway, buf);
+						// TODO do something to send full hello to roots here
+					} else  {
+						gatewayChanged = false;
+					}
+					strcpy(_lastDefaultGateway, buf);
+#endif
+
 				}
 
 				// Run background task processor in core if it's time to do so
