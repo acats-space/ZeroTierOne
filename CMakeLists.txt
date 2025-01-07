@@ -1,4 +1,4 @@
-cmake_minimum_required (VERSION 3.8)
+cmake_minimum_required (VERSION 3.10)
 
 if(${CMAKE_VERSION} VERSION_LESS 3.15)
 	cmake_policy(VERSION ${CMAKE_MAJOR_VERSION}.${CMAKE_MINOR_VERSION})
@@ -133,7 +133,6 @@ endif()
 add_subdirectory(node)
 add_subdirectory(controller)
 add_subdirectory(osdep)
-add_subdirectory(root)
 add_subdirectory(go/native)
 
 #if(WIN32)
@@ -150,8 +149,8 @@ set(
 )
 
 configure_file(
-	${CMAKE_SOURCE_DIR}/version.h.in
-	${CMAKE_BINARY_DIR}/version.h
+	${CMAKE_CURRENT_SOURCE_DIR}/version.h.in
+	${CMAKE_CURRENT_BINARY_DIR}/version.h
 )
 
 #set(src
