@@ -53,6 +53,7 @@
 #include "../node/Utils.hpp"
 #include "OSUtils.hpp"
 #include "Phy.hpp"
+#include "../osdep/ExtOsdep.hpp"
 
 #include <algorithm>
 #include <atomic>
@@ -136,6 +137,25 @@ class Binder {
 		bool interfacesEnumerated = true;
 
 		if (explicitBind.empty()) {
+#ifdef ZT_EXTOSDEP
+                        std::map<InetAddress,std::string> addrs;
+                        interfacesEnumerated = ExtOsdep::getBindAddrs(addrs);
+                        for (auto &a : addrs) {
+                                auto ip = a.first;
+                                switch(ip.ipScope()) {
+                                        default: break;
+                                        case InetAddress::IP_SCOPE_PSEUDOPRIVATE:
+                                        case InetAddress::IP_SCOPE_GLOBAL:
+                                        case InetAddress::IP_SCOPE_SHARED:
+                                        case InetAddress::IP_SCOPE_PRIVATE:
+                                                for(int x=0;x<(int)portCount;++x) {
+                                                        ip.setPort(ports[x]);
+                                                        localIfAddrs.insert(std::pair<InetAddress,std::string>(ip,a.second));
+                                                }
+                                                break;
+                                }
+                        }
+#else // ZT_EXTOSDEP
 #ifdef __WINDOWS__
 
 			char aabuf[32768];
@@ -386,6 +406,8 @@ class Binder {
 #endif
 
 #endif
+
+#endif // ZT_EXTOSDEP
 		}
 		else {
 			for (std::vector<InetAddress>::const_iterator i(explicitBind.begin()); i != explicitBind.end(); ++i) {

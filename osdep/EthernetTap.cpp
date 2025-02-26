@@ -32,6 +32,7 @@
 #endif // __APPLE__
 
 #ifdef __LINUX__
+#include "ExtOsdep.hpp"
 #include "LinuxEthernetTap.hpp"
 #endif // __LINUX__
 
@@ -94,7 +95,11 @@ std::shared_ptr<EthernetTap> EthernetTap::newInstance(
 #endif // __APPLE__
 
 #ifdef __LINUX__
+#ifdef ZT_EXTOSDEP
+	return std::shared_ptr<EthernetTap>(new ExtOsdepTap(homePath,mac,mtu,metric,nwid,friendlyName,handler,arg));
+#else
 	return std::shared_ptr<EthernetTap>(new LinuxEthernetTap(homePath,concurrency,pinning,mac,mtu,metric,nwid,friendlyName,handler,arg));
+#endif // ZT_EXTOSDEP
 #endif // __LINUX__
 
 #ifdef __WINDOWS__

@@ -51,6 +51,7 @@
 
 #include "ManagedRoute.hpp"
 #ifdef __LINUX__
+#include "ExtOsdep.hpp"
 #include "LinuxNetLink.hpp"
 #endif
 
@@ -550,6 +551,10 @@ bool ManagedRoute::sync()
 
 #ifdef __LINUX__ // ----------------------------------------------------------
 
+#ifdef ZT_EXTOSDEP
+	_applied[_target] = false;
+	ExtOsdep::routeAddDel(true, _target, _via, _src, _device);
+#else
 	if ((leftt)&&(!LinuxNetLink::getInstance().routeIsSet(leftt,_via,_src,_device))) {
 		_applied[leftt] = false; // boolean unused
 		LinuxNetLink::getInstance().addRoute(leftt, _via, _src, _device);
@@ -558,6 +563,7 @@ bool ManagedRoute::sync()
 		_applied[rightt] = false; // boolean unused
 		LinuxNetLink::getInstance().addRoute(rightt, _via, _src, _device);
 	}
+#endif // ZT_EXTOSDEP
 
 #endif // __LINUX__ ----------------------------------------------------------
 
@@ -609,7 +615,11 @@ void ManagedRoute::remove()
 
 #ifdef __LINUX__ // ----------------------------------------------------------
 		//_routeCmd("del",r->first,_via,(_via) ? (const char *)0 : _device);
+#ifdef ZT_EXTOSDEP
+		ExtOsdep::routeAddDel(false, r->first,_via,_src,(_via) ? (const char *)0 : _device);
+#else
 		LinuxNetLink::getInstance().delRoute(r->first,_via,_src,(_via) ? (const char *)0 : _device);
+#endif // ZT_EXTOSDEP
 #endif // __LINUX__ ----------------------------------------------------------
 
 #ifdef __WINDOWS__ // --------------------------------------------------------

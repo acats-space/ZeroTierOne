@@ -55,6 +55,7 @@
 #include "../osdep/Binder.hpp"
 #include "../osdep/ManagedRoute.hpp"
 #include "../osdep/BlockingQueue.hpp"
+#include "../osdep/ExtOsdep.hpp"
 
 #include "OneService.hpp"
 #include "SoftwareUpdater.hpp"
@@ -1125,6 +1126,15 @@ public:
 			}
 #endif
 
+#ifdef ZT_EXTOSDEP
+			{
+				int mgmtfd;
+				void *mgmtcookie;
+				ExtOsdep::started(&mgmtfd, &mgmtcookie);
+				_phy.wrapSocket(mgmtfd, mgmtcookie);
+			}
+#endif
+
 			// Delete legacy iddb.d if present (cleanup)
 			OSUtils::rmDashRf((_homePath + ZT_PATH_SEPARATOR_S "iddb.d").c_str());
 
@@ -2165,7 +2175,6 @@ public:
 		auto statusGet = [&, setContent](const httplib::Request &req, httplib::Response &res) {
             ZT_NodeStatus status;
             _node->status(&status);
-
             auto out = json::object();
             char tmp[256] = {};
 
@@ -2335,7 +2344,9 @@ public:
 			_controller->configureHTTPControlPlane(_controlPlane, _controlPlaneV6, setContent);
 		}
 
+#ifndef ZT_EXTOSDEP
 		_controlPlane.set_pre_routing_handler(authCheck);
+#endif // ZT_EXTOSDEP
 		_controlPlaneV6.set_pre_routing_handler(authCheck);
 
 #if ZT_DEBUG==1
@@ -2351,6 +2362,7 @@ public:
 			exit(-1);
 		}
 
+#ifndef ZT_EXTOSDEP
 		bool v4controlPlaneBound = false;
 		_controlPlane.set_address_family(AF_INET);
 		if(_controlPlane.bind_to_port("0.0.0.0", _primaryPort)) {
@@ -2391,6 +2403,7 @@ public:
 			fprintf(stderr, "ERROR: Could not bind control plane. Exiting...\n");
 			exit(-1);
 		}
+#endif // ZT_EXTOSDEP
     }
 
 	// Must be called after _localConfig is read or modified
@@ -3162,8 +3175,52 @@ public:
 	inline void phyOnFileDescriptorActivity(PhySocket *sock,void **uptr,bool readable,bool writable) {}
 	inline void phyOnUnixAccept(PhySocket *sockL,PhySocket *sockN,void **uptrL,void **uptrN) {}
 	inline void phyOnUnixClose(PhySocket *sock,void **uptr) {}
-	inline void phyOnUnixData(PhySocket *sock,void **uptr,void *data,unsigned long len) {}
-	inline void phyOnUnixWritable(PhySocket *sock,void **uptr) {}
+	inline void phyOnUnixData(PhySocket *sock,void **uptr,void *data,unsigned long len) {
+#ifdef ZT_EXTOSDEP
+		if (ExtOsdep::mgmtRecv(*uptr, data, len, [&](unsigned method, const std::string &path, const std::string &data, std::string &resp) {
+				// fprintf(stderr, "mgmtRecv: %u %s %s\n", method, path.c_str(), data.c_str());
+				httplib::Request req;
+				httplib::Response res;
+				req.path = "/" + path;
+				if (method == 1) req.method = "GET";
+				else if (method == 3) req.method = "POST";
+				else if (method == 0) req.method = "DELETE";
+				struct S : public httplib::Stream {
+					const char *ptr;
+					unsigned size;
+					S(const std::string &s) : ptr(s.c_str()), size(s.size()) {}
+					virtual bool is_readable() const { return true; }
+					virtual bool is_writable() const { return true; }
+					virtual ssize_t read(char *p, size_t sz) {
+						// fprintf(stderr, "S::read %d\n", (int)size);
+						if (sz > (size_t)size) sz = size;
+						memcpy(p, ptr, sz);
+						size -= (unsigned)sz;
+						ptr += sz;
+						return (ssize_t)sz;
+					}
+					virtual ssize_t write(const char *ptr, size_t size) {
+						// fprintf(stderr, "S::write %d\n", (int)size);
+						return size;
+					}
+					virtual void get_remote_ip_and_port(std::string &ip, int &port) const {}
+					virtual void get_local_ip_and_port(std::string &ip, int &port) const {};
+					virtual socket_t socket() const { return 0; }
+				};
+				S s(data);
+
+				bool x = _controlPlane.routing(req, res, s);
+				// fprintf(stderr, "mgmtRecv: done, x %d status %u body %s\n", x, res.status, res.body.c_str());
+				resp = res.body;
+				return res.status;
+			})) _phy.setNotifyWritable(sock,true);
+#endif
+	}
+	inline void phyOnUnixWritable(PhySocket *sock,void **uptr) {
+#ifdef ZT_EXTOSDEP
+		if (ExtOsdep::mgmtWritable(*uptr)) _phy.setNotifyWritable(sock,false);
+#endif
+	}
 
 	inline int nodeVirtualNetworkConfigFunction(uint64_t nwid,void **nuptr,enum ZT_VirtualNetworkConfigOperation op,const ZT_VirtualNetworkConfig *nwc)
 	{
