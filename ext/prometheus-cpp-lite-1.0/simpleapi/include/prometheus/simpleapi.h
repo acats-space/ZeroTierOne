@@ -19,7 +19,7 @@
 
 #if UINTPTR_MAX == 0xffFFffFF
 // 32-bit
-typedef uint32_tmetric_size;
+typedef uint32_t metric_size;
 #elif UINTPTR_MAX == 0xffFFffFFffFFffFF
 // 64-bit
 typedef uint64_t metric_size;
