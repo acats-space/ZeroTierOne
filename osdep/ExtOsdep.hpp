@@ -16,6 +16,8 @@
 
 #ifdef ZT_EXTOSDEP
 
+#include <stdint.h>
+
 #define ZT_EOD_MAXMSGSIZE (64 * 1024)
 
 #define ZT_EOD_MSG_STARTED			1	// no data
