@@ -351,6 +351,7 @@ ifeq ($(ZT_ARCHITECTURE),3)
 		ifeq ($(ZT_EXTOSDEP), 0)
 			override CFLAGS+=-mfloat-abi=hard -march=armv6zk -marm -mfpu=vfp -mno-unaligned-access -mtp=cp15 -mcpu=arm1176jzf-s
 			override CXXFLAGS+=-mfloat-abi=hard -march=armv6zk -marm -mfpu=vfp -fexceptions -mno-unaligned-access -mtp=cp15 -mcpu=arm1176jzf-s
+		else
 			override DEFS+=-DZT_NO_PEER_METRICS
 		endif
 		ZT_USE_ARM32_NEON_ASM_CRYPTO=0
