@@ -198,13 +198,13 @@ CV1::CV1(const Identity &myId, const char *path, int listenPort, RedisConfig *rc
 	initializeNetworks();
 	initializeMembers();
 
-	_heartbeatThread = std::thread(&PostgreSQL::heartbeat, this);
-	_membersDbWatcher = std::thread(&PostgreSQL::membersDbWatcher, this);
-	_networksDbWatcher = std::thread(&PostgreSQL::networksDbWatcher, this);
+	_heartbeatThread = std::thread(&CV1::heartbeat, this);
+	_membersDbWatcher = std::thread(&CV1::membersDbWatcher, this);
+	_networksDbWatcher = std::thread(&CV1::networksDbWatcher, this);
 	for (int i = 0; i < ZT_CENTRAL_CONTROLLER_COMMIT_THREADS; ++i) {
-		_commitThread[i] = std::thread(&PostgreSQL::commitThread, this);
+		_commitThread[i] = std::thread(&CV1::commitThread, this);
 	}
-	_onlineNotificationThread = std::thread(&PostgreSQL::onlineNotificationThread, this);
+	_onlineNotificationThread = std::thread(&CV1::onlineNotificationThread, this);
 
 	configureSmee();
 }
