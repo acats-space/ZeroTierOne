@@ -75,6 +75,10 @@ public:
  */
 class DB
 {
+#ifdef ZT_CONTROLLER_USE_LIBPQ
+	friend class MemberNotificationReceiver;
+	friend class NetworkNotificationReceiver;
+#endif
 public:
 	class ChangeListener
 	{
@@ -144,6 +148,10 @@ public:
 	{
 		std::unique_lock<std::shared_mutex> l(_changeListeners_l);
 		_changeListeners.push_back(listener);
+	}
+
+	virtual bool ready() {
+		return true;
 	}
 
 protected:

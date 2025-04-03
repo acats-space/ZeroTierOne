@@ -57,9 +57,9 @@ ONE_OBJS+=ext/libnatpmp/natpmp.o ext/libnatpmp/getgateway.o ext/miniupnpc/connec
 ifeq ($(ZT_CONTROLLER),1)
 	MACOS_VERSION_MIN=10.15
 	override CXXFLAGS=$(CFLAGS) -std=c++17 -stdlib=libc++
-	LIBS+=-L/usr/local/opt/libpqxx/lib -L/usr/local/opt/libpq/lib -L/usr/local/opt/openssl/lib/ -lpqxx -lpq -lssl -lcrypto -lgssapi_krb5 ext/redis-plus-plus-1.1.1/install/macos/lib/libredis++.a ext/hiredis-0.14.1/lib/macos/libhiredis.a
+	LIBS+=-L/opt/homebrew/lib -L/usr/local/opt/libpqxx/lib -L/usr/local/opt/libpq/lib -L/usr/local/opt/openssl/lib/ -lpqxx -lpq -lssl -lcrypto -lgssapi_krb5 ext/redis-plus-plus-1.1.1/install/macos/lib/libredis++.a ext/hiredis-0.14.1/lib/macos/libhiredis.a rustybits/target/libsmeeclient.a
 	DEFS+=-DZT_CONTROLLER_USE_LIBPQ -DZT_CONTROLLER_USE_REDIS -DZT_CONTROLLER 
-	INCLUDES+=-I/usr/local/opt/libpq/include -I/usr/local/opt/libpqxx/include -Iext/hiredis-0.14.1/include/ -Iext/redis-plus-plus-1.1.1/install/macos/include/sw/
+	INCLUDES+=-I/opt/homebrew/include -I/opt/homebrew/opt/libpq/include -I/usr/local/opt/libpq/include -I/usr/local/opt/libpqxx/include -Iext/hiredis-0.14.1/include/ -Iext/redis-plus-plus-1.1.1/install/macos/include/sw/ -Irustybits/target/
 else
 	MACOS_VERSION_MIN=10.13
 endif
@@ -115,7 +115,11 @@ mac-agent: FORCE
 osdep/MacDNSHelper.o: osdep/MacDNSHelper.mm
 	$(CXX) $(CXXFLAGS) -c osdep/MacDNSHelper.mm -o osdep/MacDNSHelper.o 
 
+ifeq ($(ZT_CONTROLLER),1)
+one:	zeroidc smeeclient $(CORE_OBJS) $(ONE_OBJS) one.o mac-agent 
+else
 one:	zeroidc $(CORE_OBJS) $(ONE_OBJS) one.o mac-agent 
+endif
 	$(CXX) $(CXXFLAGS) -o zerotier-one $(CORE_OBJS) $(ONE_OBJS) one.o $(LIBS) rustybits/target/libzeroidc.a
 	# $(STRIP) zerotier-one
 	ln -sf zerotier-one zerotier-idtool
@@ -125,6 +129,15 @@ one:	zeroidc $(CORE_OBJS) $(ONE_OBJS) one.o mac-agent
 zerotier-one: one
 
 zeroidc: rustybits/target/libzeroidc.a
+
+ifeq ($(ZT_CONTROLLER),1)
+smeeclient: rustybits/target/libsmeeclient.a
+
+rustybits/target/libsmeeclient.a:	FORCE
+	cd rustybits && MACOSX_DEPLOYMENT_TARGET=$(MACOS_VERSION_MIN) cargo build -p smeeclient --target=x86_64-apple-darwin $(EXTRA_CARGO_FLAGS)
+	cd rustybits && MACOSX_DEPLOYMENT_TARGET=$(MACOS_VERSION_MIN) cargo build -p smeeclient --target=aarch64-apple-darwin $(EXTRA_CARGO_FLAGS)
+	cd rustybits && lipo -create target/x86_64-apple-darwin/$(RUST_VARIANT)/libsmeeclient.a target/aarch64-apple-darwin/$(RUST_VARIANT)/libsmeeclient.a -output target/libsmeeclient.a
+endif
 
 rustybits/target/libzeroidc.a:	FORCE
 	cd rustybits && MACOSX_DEPLOYMENT_TARGET=$(MACOS_VERSION_MIN) cargo build -p zeroidc --target=x86_64-apple-darwin $(EXTRA_CARGO_FLAGS)

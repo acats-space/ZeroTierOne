@@ -41,6 +41,7 @@
 #include "FileDB.hpp"
 #ifdef ZT_CONTROLLER_USE_LIBPQ
 #include "PostgreSQL.hpp"
+#include "CV1.hpp"
 #endif
 
 #include "../node/Node.hpp"
@@ -534,7 +535,7 @@ void EmbeddedNetworkController::init(const Identity &signingId,Sender *sender)
 
 #ifdef ZT_CONTROLLER_USE_LIBPQ
 	if ((_path.length() > 9)&&(_path.substr(0,9) == "postgres:")) {
-		_db.addDB(std::shared_ptr<DB>(new PostgreSQL(_signingId,_path.substr(9).c_str(), _listenPort, _rc)));
+		_db.addDB(std::shared_ptr<DB>(new CV1(_signingId,_path.substr(9).c_str(), _listenPort, _rc)));
 	} else {
 #endif
 		_db.addDB(std::shared_ptr<DB>(new FileDB(_path.c_str())));
