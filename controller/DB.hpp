@@ -150,10 +150,6 @@ public:
 		_changeListeners.push_back(listener);
 	}
 
-	virtual bool ready() {
-		return true;
-	}
-
 protected:
 	static inline bool _compareRecords(const nlohmann::json &a,const nlohmann::json &b)
 	{

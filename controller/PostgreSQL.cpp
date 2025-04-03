@@ -26,7 +26,7 @@ void MemberNotificationReceiver::operator() (const std::string &payload, int pac
 	if (ov.is_object()) oldConfig = ov;
 	if (nv.is_object()) newConfig = nv;
 	if (oldConfig.is_object() || newConfig.is_object()) {
-		_psql->_memberChanged(oldConfig,newConfig,_psql->ready());
+		_psql->_memberChanged(oldConfig,newConfig,_psql->isReady());
 		fprintf(stderr, "payload sent\n");
 	}
 }
@@ -49,7 +49,7 @@ void NetworkNotificationReceiver::operator() (const std::string &payload, int pa
 	if (ov.is_object()) oldConfig = ov;
 	if (nv.is_object()) newConfig = nv;
 	if (oldConfig.is_object() || newConfig.is_object()) {
-		_psql->_networkChanged(oldConfig,newConfig,_psql->ready());
+		_psql->_networkChanged(oldConfig,newConfig,_psql->isReady());
 		fprintf(stderr, "payload sent\n");
 	}
 }
