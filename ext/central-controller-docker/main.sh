@@ -1,8 +1,6 @@
 #!/bin/bash
 
 if [ -z "$ZT_IDENTITY_PATH" ]; then
-    echo '*** FAILED: ZT_IDENTITY_PATH environment variable is not defined'
-    exit 1
 fi
 if [ -z "$ZT_DB_HOST" ]; then
     echo '*** FAILED: ZT_DB_HOST environment variable not defined'
@@ -59,10 +57,14 @@ fi
 mkdir -p /var/lib/zerotier-one
 
 pushd /var/lib/zerotier-one
-ln -s $ZT_IDENTITY_PATH/identity.public identity.public
-ln -s $ZT_IDENTITY_PATH/identity.secret identity.secret
-if [ -f  "$ZT_IDENTITY_PATH/authtoken.secret" ]; then
-    ln -s $ZT_IDENTITY_PATH/authtoken.secret authtoken.secret
+if [ -d "$ZT_IDENTITY_PATH" ]; then
+    echo '*** Using existing ZT identity from path $ZT_IDENTITY_PATH'
+
+    ln -s $ZT_IDENTITY_PATH/identity.public identity.public
+    ln -s $ZT_IDENTITY_PATH/identity.secret identity.secret
+    if [ -f  "$ZT_IDENTITY_PATH/authtoken.secret" ]; then
+        ln -s $ZT_IDENTITY_PATH/authtoken.secret authtoken.secret
+    fi
 fi
 popd
 
