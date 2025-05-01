@@ -24,6 +24,9 @@ if [ -z "$ZT_DB_PASSWORD" ]; then
     echo '*** FAILED: ZT_DB_PASSWORD environment variable not defined'
     exit 1
 fi
+if [ -z "$ZT_DB_TYPE" ]; then
+    ZT_DB="postgres"
+fi
 
 REDIS=""
 if [ "$ZT_USE_REDIS" == "true" ]; then
@@ -70,7 +73,7 @@ APP_NAME="controller-$(cat /var/lib/zerotier-one/identity.public | cut -d ':' -f
 
 echo "{
     \"settings\": {
-        \"controllerDbPath\": \"postgres:host=${ZT_DB_HOST} port=${ZT_DB_PORT} dbname=${ZT_DB_NAME} user=${ZT_DB_USER} password=${ZT_DB_PASSWORD} application_name=${APP_NAME} sslmode=prefer sslcert=${DB_CLIENT_CERT} sslkey=${DB_CLIENT_KEY} sslrootcert=${DB_SERVER_CA}\",
+        \"controllerDbPath\": \"${ZT_DB_TYPE}:host=${ZT_DB_HOST} port=${ZT_DB_PORT} dbname=${ZT_DB_NAME} user=${ZT_DB_USER} password=${ZT_DB_PASSWORD} application_name=${APP_NAME} sslmode=prefer sslcert=${DB_CLIENT_CERT} sslkey=${DB_CLIENT_KEY} sslrootcert=${DB_SERVER_CA}\",
         \"portMappingEnabled\": true,
         \"softwareUpdate\": \"disable\",
         \"interfacePrefixBlacklist\": [
