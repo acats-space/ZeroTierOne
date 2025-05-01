@@ -379,7 +379,7 @@ void CV2::initializeNetworks()
 	
     try {
 		char qbuf[2048];
-		sprintf(qbuf, "SELECT id, name, description, configuration , created_at, last_modified, revision FROM networks WHERE controller_id = '%s'", _myAddressStr.c_str());
+		sprintf(qbuf, "SELECT id, name, configuration , creation_time, last_modified, revision FROM networks_ctl WHERE controller_id = '%s'", _myAddressStr.c_str());
 
 		auto c = _pool->borrow();
 		pqxx::work w(*c->c);
@@ -389,7 +389,6 @@ void CV2::initializeNetworks()
 		std::tuple<
 			  std::string 					// network ID
 			, std::optional<std::string>	// name
-			, std::optional<std::string>	// description
 			, std::string	// configuration
 			, std::optional<uint64_t>		// created_at
 			, std::optional<uint64_t>		// last_modified
@@ -407,15 +406,13 @@ void CV2::initializeNetworks()
 
 			std::string nwid = std::get<0>(row);
 			std::string name = std::get<1>(row).value_or("");
-			std::string description = std::get<2>(row).value_or("");
-			json cfgtmp = json::parse(std::get<3>(row));
-			std::optional<uint64_t> created_at = std::get<4>(row);
-			std::optional<uint64_t> last_modified = std::get<5>(row);
-			std::optional<uint64_t> revision = std::get<6>(row);
+			json cfgtmp = json::parse(std::get<2>(row));
+			std::optional<uint64_t> created_at = std::get<3>(row);
+			std::optional<uint64_t> last_modified = std::get<4>(row);
+			std::optional<uint64_t> revision = std::get<5>(row);
 
 			config["id"] = nwid;
 			config["name"] = name;
-			config["description"] = description;
 			config["creationTime"] = created_at.value_or(0);
 			config["lastModified"] = last_modified.value_or(0);
 			config["revision"] = revision.value_or(0);
@@ -496,15 +493,15 @@ void CV2::initializeMembers()
     try {
 		char qbuf[2048];
 		sprintf(qbuf,
-			"SELECT dn.device_id, dn.network_id, dn.authorized, dn.active_bridge, dn.ip_assignments, dn.no_auto_assign_ips, "
-			"dn.sso_exempt, authentication_expiry_time, dn.creation_time, dn.identity, dn.last_authorized_credential, "
-			"dn.last_authorized_time, dn.last_deauthorized_time, dn.remote_trace_level, dn.remote_trace_target, "
-			"dn.revision, dn.capabilities, dn.tags "
-			"FROM device_networks dn "
+			"SELECT nm.device_id, nm.network_id, nm.authorized, nm.active_bridge, nm.ip_assignments, nm.no_auto_assign_ips, "
+			"nm.sso_exempt, authentication_expiry_time, nm.creation_time, nm.identity, nm.last_authorized_credential, "
+			"nm.last_authorized_time, nm.last_deauthorized_time, nm.remote_trace_level, nm.remote_trace_target, "
+			"nm.revision, nm.capabilities, nm.tags "
+			"FROM network_memberships_ctl nm "
 			"INNER JOIN devices d "
-			"  ON dn.device_id = d.id "
+			"  ON nm.device_id = d.id "
 			"INNER JOIN networks n "
-			"  ON dn.network_id = n.id "
+			"  ON nm.network_id = n.id "
 			"WHERE n.controller_id = '%s'", _myAddressStr.c_str());
 		
 		auto c = _pool->borrow();
@@ -656,7 +653,7 @@ void CV2::heartbeat()
 
             try {
                 pqxx::work w{*c->c};
-                w.exec_params0("INSERT INTO controller (id, hostname, last_heartbeat, public_identity, version) VALUES "
+                w.exec_params0("INSERT INTO controllers_ctl (id, hostname, last_heartbeat, public_identity, version) VALUES "
                     "($1, $2, TO_TIMESTAMP($3::double precision/1000), $4, $5) "
                     "ON CONFLICT (id) DO UPDATE SET hostname = EXCLUDED.hostname, last_heartbeat = EXCLUDED.last_heartbeat, "
                     "public_identity = EXCLUDED.public_identity, version = EXCLUDED.version",
@@ -772,24 +769,14 @@ void CV2::commitThread()
 					// bool isNewMember = (membercount == 0);
 
 					pqxx::result res = w.exec_params0(
-						"INSERT INTO devices (id, version_major, version_minor, version_revision, version_protocol) "
-						"VALUES ($1, $2, $3, $4, $5) ON CONFLICT (id) DO UPDATE SET "
-						"version_major = EXCLUDED.version_major, version_minor = EXCLUDED.version_minor, "
-						"version_revision = EXCLUDED.version_revision, version_protocol = EXCLUDED.version_protocol ",
-						memberId,
-						(int)config["vMajor"],
-						(int)config["vMinor"],
-						(int)config["vRev"],
-						(int)config["vProto"]);
-
-					res = w.exec_params0(
-						"INSERT INTO device_networks (device_id, network_id, authorized, active_bridge, ip_assignments, "
+						"INSERT INTO network_memberships_ctl (device_id, network_id, authorized, active_bridge, ip_assignments, "
 						"no_auto_assign_ips, sso_exempt, authentication_expiry_time, capabilities, creation_time, "
 						"identity, last_authorized_credential, last_authorized_time, last_deauthorized_time, "
-						"remote_trace_level, remote_trace_target, revision, tags) "
+						"remote_trace_level, remote_trace_target, revision, tags, version_major, version_minor, "
+						"version_revision, version_protocol) "
 						"VALUES ($1, $2, $3, $4, $5, $6, $7, TO_TIMESTAMP($8::double precision/1000), $9, "
 						"TO_TIMESTAMP($10::double precision/1000), $11, 12, TO_TIMESTAMP($13::double precision/1000), "
-						"TO_TIMESTAMP($14::double precision/1000), $15, $16, $17, $18) "
+						"TO_TIMESTAMP($14::double precision/1000), $15, $16, $17, $18, $19, $20, $21, $22) "
 						"ON CONFLICT (device_id, network_id) DO UPDATE SET "
 						"authorized = EXCLUDED.authorized, active_bridge = EXCLUDED.active_bridge, "
 						"ip_assignments = EXCLUDED.ip_assignments, no_auto_assign_ips = EXCLUDED.no_auto_assign_ips, "
@@ -798,7 +785,9 @@ void CV2::commitThread()
 						"identity = EXCLUDED.identity, last_authorized_credential = EXCLUDED.last_authorized_credential, "
 						"last_authorized_time = EXCLUDED.last_authorized_time, last_deauthorized_time = EXCLUDED.last_deauthorized_time, "
 						"remote_trace_level = EXCLUDED.remote_trace_level, remote_trace_target = EXCLUDED.remote_trace_target, "
-						"revision = EXCLUDED.revision, tags = EXCLUDED.tags",
+						"revision = EXCLUDED.revision, tags = EXCLUDED.tags, version_major = EXCLUDED.version_major, "
+						"version_minor = EXCLUDED.version_minor, version_revision = EXCLUDED.version_revision, "
+						"version_protocol = EXCLUDED.version_protocol",
 						memberId,
 						networkId,
 						(bool)config["authorized"],
@@ -816,7 +805,11 @@ void CV2::commitThread()
 						(int)config["remoteTraceLevel"],
 						target,
 						(uint64_t)config["revision"],
-						OSUtils::jsonDump(config["tags"], -1));
+						OSUtils::jsonDump(config["tags"], -1),
+						(int)config["vMajor"],
+						(int)config["vMinor"],
+						(int)config["vRev"],
+						(int)config["vProto"]);
 
 					w.commit();
 
@@ -862,13 +855,18 @@ void CV2::commitThread()
 					pqxx::work w(*c->c);
 
 					std::string id = config["id"];
-
+					
 					// network must already exist
 					pqxx::result res = w.exec_params0(
-						"UPDATE networks SET configuration = $1, revision = $2 WHERE id = $3",
+						"INSERT INTO networks_ctl (id, name, configuration, controller_id, revision) "
+						"VALUES ($1, $2, $3, $4, $5) "
+						"ON CONFLICT (id) DO UPDATE SET "
+						"name = EXCLUDED.name, configuration = EXCLUDED.configuration, revision = EXCLUDED.revision+1",
+						id,
+						OSUtils::jsonString(config["name"], ""),
 						OSUtils::jsonDump(config, -1),
-						(uint64_t)config["revision"],
-						id
+						_myAddressStr,
+						((uint64_t)config["revision"])
 					);
 
 					w.commit();
@@ -891,33 +889,30 @@ void CV2::commitThread()
 				// fprintf(stderr, "%s: commitThread: delete network\n", _myAddressStr.c_str());
 				try {
 					// don't think we need this. Deletion handled by CV2 API
+				
+					pqxx::work w(*c->c);
+					std::string networkId = config["id"];
+					
+					w.exec_params0("DELETE FROM network_memberships_ctl WHERE network_id = $1", networkId);
+					w.exec_params0("DELETE FROM networks_ctl WHERE id = $1", networkId);
 
-					// pqxx::work w(*c->c);
-
-					// std::string networkId = config["nwid"];
-
-					// pqxx::result res = w.exec_params0("UPDATE ztc_network SET deleted = true WHERE id = $1",
-					// 	networkId);
-
-					// w.commit();
+					w.commit();
 				} catch (std::exception &e) {
 					fprintf(stderr, "%s ERROR: Error deleting network: %s\n", _myAddressStr.c_str(), e.what());
 				}
 			} else if (objtype == "_delete_member") {
 				// fprintf(stderr, "%s commitThread: delete member\n", _myAddressStr.c_str());
 				try {
-					// don't think we need this. Deletion handled by CV2 API
+					pqxx::work w(*c->c);
 
-					// pqxx::work w(*c->c);
+					std::string memberId = config["id"];
+					std::string networkId = config["nwid"];
 
-					// std::string memberId = config["id"];
-					// std::string networkId = config["nwid"];
+					 pqxx::result res = w.exec_params0(
+					 	"DELETE FROM network_memberships_ctl WHERE device_id = $1 AND network_id = $2",
+					 	memberId, networkId);
 
-					// pqxx::result res = w.exec_params0(
-					// 	"UPDATE ztc_member SET hidden = true, deleted = true WHERE id = $1 AND network_id = $2",
-					// 	memberId, networkId);
-
-					// w.commit();
+					w.commit();
 				} catch (std::exception &e) {
 					fprintf(stderr, "%s ERROR: Error deleting member: %s\n", _myAddressStr.c_str(), e.what());
 				}
