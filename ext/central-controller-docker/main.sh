@@ -1,7 +1,5 @@
 #!/bin/bash
 
-if [ -z "$ZT_IDENTITY_PATH" ]; then
-fi
 if [ -z "$ZT_DB_HOST" ]; then
     echo '*** FAILED: ZT_DB_HOST environment variable not defined'
     exit 1
