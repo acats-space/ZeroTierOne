@@ -47,15 +47,11 @@ CV2::CV2(const Identity &myId, const char *path, int listenPort)
 	, _waitNoticePrinted(false)
 	, _listenPort(listenPort)
 {
+	fprintf(stderr, "CV2::CV2\n");
 	char myAddress[64];
 	_myAddressStr = myId.address().toString(myAddress);
 
-    // replace cv2: with postgres: for the path/connstring
-    std::string _path(path);
-    if (_path.length() > 4 && _path.substr(0, 4) == "cv2:") {
-        _path = "postgres:" + _path.substr(4);
-    }
-    _connString = std::string(_path);
+    _connString = std::string(path);
     
 	auto f = std::make_shared<PostgresConnFactory>(_connString);
 	_pool = std::make_shared<ConnectionPool<PostgresConnection> >(

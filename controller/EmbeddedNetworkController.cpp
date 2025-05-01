@@ -534,11 +534,16 @@ void EmbeddedNetworkController::init(const Identity &signingId,Sender *sender)
 	_signingIdAddressString = signingId.address().toString(tmp);
 
 #ifdef ZT_CONTROLLER_USE_LIBPQ
+	fprintf(stderr, "path: %s\n", _path.c_str());
+	fprintf(stderr, "substr: %s\n", _path.substr(0,3).c_str());
 	if ((_path.length() > 9)&&(_path.substr(0,9) == "postgres:")) {
+		fprintf(stderr, "CV1\n");
 		_db.addDB(std::shared_ptr<DB>(new CV1(_signingId,_path.substr(9).c_str(), _listenPort, _rc)));
-	} else if ((_path.length() > 3)&&(_path.substr(0,3) == "cv2:")) {
-		_db.addDB(std::shared_ptr<DB>(new CV2(_signingId,_path.c_str(),_listenPort)));
+	} else if ((_path.length() > 4)&&(_path.substr(0,4) == "cv2:")) {
+		fprintf(stderr, "CV2\n");
+		_db.addDB(std::shared_ptr<DB>(new CV2(_signingId,_path.substr(4).c_str(),_listenPort)));
 	} else {
+		fprintf(stderr, "FileDB\n");
 #endif
 		_db.addDB(std::shared_ptr<DB>(new FileDB(_path.c_str())));
 #ifdef ZT_CONTROLLER_USE_LIBPQ
