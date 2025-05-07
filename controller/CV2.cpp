@@ -494,7 +494,7 @@ void CV2::initializeMembers()
 			"nm.last_authorized_time, nm.last_deauthorized_time, nm.remote_trace_level, nm.remote_trace_target, "
 			"nm.revision, nm.capabilities, nm.tags "
 			"FROM network_memberships_ctl nm "
-			"INNER JOIN networks n "
+			"INNER JOIN networks_ctl n "
 			"  ON nm.network_id = n.id "
 			"WHERE n.controller_id = '%s'", _myAddressStr.c_str());
 		
