@@ -494,8 +494,6 @@ void CV2::initializeMembers()
 			"nm.last_authorized_time, nm.last_deauthorized_time, nm.remote_trace_level, nm.remote_trace_target, "
 			"nm.revision, nm.capabilities, nm.tags "
 			"FROM network_memberships_ctl nm "
-			"INNER JOIN devices d "
-			"  ON nm.device_id = d.id "
 			"INNER JOIN networks n "
 			"  ON nm.network_id = n.id "
 			"WHERE n.controller_id = '%s'", _myAddressStr.c_str());
@@ -972,7 +970,7 @@ void CV2::onlineNotificationThread() {
 				std::string memberId(memTmp);
 
 				try {
-					pqxx::row r = w2.exec_params1("SELECT device_id, network_id FROM device_networks WHERE network_id = $1 AND device_id = $2",
+					pqxx::row r = w2.exec_params1("SELECT device_id, network_id FROM network_memberships_ctl WHERE network_id = $1 AND device_id = $2",
 						networkId, memberId);
 				} catch (pqxx::unexpected_rows &e) {
 					continue;
@@ -986,12 +984,8 @@ void CV2::onlineNotificationThread() {
 					{ipAddr, ts},
 				};
 
-				// upsert into devices table 
-				std::string device_insert = "INSERT INTO devices (id, last_seen) VALUES ('"+w2.esc(memberId)+"', '"+w2.esc(record.dump())+"'::JSONB) " 
-					"ON CONFLICT (id) DO UPDATE SET last_seen = last_seen || EXCLUDED.last_seen";
-				pipe.insert(device_insert);
 
-				std::string device_network_insert = "INSERT INTO device_networks (device_id, network_id, last_seen) " 
+				std::string device_network_insert = "INSERT INTO network_memberships_ctl (device_id, network_id, last_seen) " 
 					"VALUES ('"+w2.esc(memberId)+"', '"+w2.esc(networkId)+"', '"+w2.esc(record.dump())+"'::JSONB) " 
 					"ON CONFLICT (device_id, network_id) DO UPDATE SET last_seen = last_seen || EXCLUDED.last_seen";
 				pipe.insert(device_network_insert);
