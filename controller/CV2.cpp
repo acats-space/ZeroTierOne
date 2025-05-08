@@ -376,7 +376,7 @@ void CV2::initializeNetworks()
     try {
 		char qbuf[2048];
 		sprintf(qbuf, "SELECT id, name, configuration , (EXTRACT(EPOCH FROM creation_time AT TIME ZONE 'UTC')*1000)::bigint, "
-			"(EXTRACT(EPOCH FROM last_modified AT TIME ZONE 'UTC')*1000):bigint, revision "
+			"(EXTRACT(EPOCH FROM last_modified AT TIME ZONE 'UTC')*1000)::bigint, revision "
 			"FROM networks_ctl WHERE controller_id = '%s'", _myAddressStr.c_str());
 
 		auto c = _pool->borrow();
