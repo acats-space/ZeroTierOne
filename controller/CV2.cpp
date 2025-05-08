@@ -375,7 +375,9 @@ void CV2::initializeNetworks()
 	
     try {
 		char qbuf[2048];
-		sprintf(qbuf, "SELECT id, name, configuration , creation_time, last_modified, revision FROM networks_ctl WHERE controller_id = '%s'", _myAddressStr.c_str());
+		sprintf(qbuf, "SELECT id, name, configuration , (EXTRACT(EPOCH FROM creation_time AT TIME ZONE 'UTC')*1000)::bigint, "
+			"(EXTRACT(EPOCH FROM last_modified AT TIME ZONE 'UTC')*1000):bigint, revision "
+			"FROM networks_ctl WHERE controller_id = '%s'", _myAddressStr.c_str());
 
 		auto c = _pool->borrow();
 		pqxx::work w(*c->c);
@@ -386,7 +388,7 @@ void CV2::initializeNetworks()
 			  std::string 					// network ID
 			, std::optional<std::string>	// name
 			, std::string	// configuration
-			, std::optional<uint64_t>		// created_at
+			, std::optional<uint64_t>		// creation_time
 			, std::optional<uint64_t>		// last_modified
 			, std::optional<uint64_t>		// revision
 		> row;
@@ -490,9 +492,11 @@ void CV2::initializeMembers()
 		char qbuf[2048];
 		sprintf(qbuf,
 			"SELECT nm.device_id, nm.network_id, nm.authorized, nm.active_bridge, nm.ip_assignments, nm.no_auto_assign_ips, "
-			"nm.sso_exempt, authentication_expiry_time, nm.creation_time, nm.identity, nm.last_authorized_credential, "
-			"nm.last_authorized_time, nm.last_deauthorized_time, nm.remote_trace_level, nm.remote_trace_target, "
-			"nm.revision, nm.capabilities, nm.tags "
+			"nm.sso_exempt, (EXTRACT(EPOCH FROM nm.authentication_expiry_time AT TIME ZONE 'UTC')*1000)::bigint, "
+			"EXTRACT(EPOCH FROM nm.creation_time AT TIME ZONE 'UTC')*1000)::bigint, nm.identity, nm.last_authorized_credential, "
+			"EXTRACT(EPOCH FROM nm.last_authorized_time AT TIME ZONE 'UTC')*1000)::bigint, "
+			"EXTRACT(EPOCH FROM nm.last_deauthorized_time AT TIME ZONE 'UTC')*1000)::bigint, "
+			"nm.remote_trace_level, nm.remote_trace_target, nm.revision, nm.capabilities, nm.tags "
 			"FROM network_memberships_ctl nm "
 			"INNER JOIN networks_ctl n "
 			"  ON nm.network_id = n.id "
@@ -512,7 +516,7 @@ void CV2::initializeMembers()
 			, std::optional<bool>						// sso_exempt
 			, std::optional<uint64_t>					// authentication_expiry_time
 			, std::optional<uint64_t>					// creation_time
-			, std::string 								// identity
+			, std::optional<std::string>				// identity
 			, std::optional<std::string>				// last_authorized_credential
 			, std::optional<uint64_t>					// last_authorized_time
 			, std::optional<uint64_t>					// last_deauthorized_time
@@ -541,7 +545,7 @@ void CV2::initializeMembers()
 			std::optional<bool> sso_exempt = std::get<6>(row);
 			std::optional<uint64_t> authentication_expiry_time = std::get<7>(row);
 			std::optional<uint64_t> creation_time = std::get<8>(row);
-			std::string identity = std::get<9>(row);
+			std::optional<std::string> identity = std::get<9>(row);
 			std::optional<std::string> last_authorized_credential = std::get<10>(row);
 			std::optional<uint64_t> last_authorized_time = std::get<11>(row);
 			std::optional<uint64_t> last_deauthorized_time = std::get<12>(row);
@@ -553,7 +557,7 @@ void CV2::initializeMembers()
 
 			config["objtype"] = "member";
 			config["id"] = memberId;
-			config["address"] = identity;
+			config["address"] = identity.value_or("");
 			config["nwid"] = networkId;
 			config["authorized"] = authorized;
 			config["activeBridge"] = active_bridge.value_or(false);
