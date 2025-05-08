@@ -420,7 +420,7 @@ void CV2::initializeNetworks()
 			config["multicastLimit"] = cfgtmp["multicastLimit"].is_number() ? cfgtmp["multicastLimit"].get<int32_t>() : 64;
 			config["private"] = cfgtmp["private"].is_boolean() ? cfgtmp["private"].get<bool>() : true;
 			config["remoteTraceLevel"] = cfgtmp["remoteTraceLevel"].is_number() ? cfgtmp["remoteTraceLevel"].get<int32_t>() : 0;
-			config["remoteTraceTarget"] = cfgtmp["remoteTraceTarget"].is_string() ? cfgtmp["remoteTraceTarget"].get<std::string>() : nullptr;
+			config["remoteTraceTarget"] = cfgtmp["remoteTraceTarget"].is_string() ? cfgtmp["remoteTraceTarget"].get<std::string>() : "";
 			config["revision"] = revision.value_or(0);
 			config["rules"] = cfgtmp["rules"].is_array() ? cfgtmp["rules"] : json::array();
 			config["tags"] = cfgtmp["tags"].is_array() ? cfgtmp["tags"] : json::array();
@@ -441,9 +441,9 @@ void CV2::initializeNetworks()
 			config["ssoEnabled"] = cfgtmp["ssoEnabled"].is_boolean() ? cfgtmp["ssoEnabled"].get<bool>() : false;
 			config["objtype"] = "network";
 			config["routes"] = cfgtmp["routes"].is_array() ? cfgtmp["routes"] : json::array();
-			config["clientId"] = cfgtmp["clientId"].is_string() ? cfgtmp["clientId"].get<std::string>() : nullptr;
+			config["clientId"] = cfgtmp["clientId"].is_string() ? cfgtmp["clientId"].get<std::string>() : "";
 			config["authorizationEndpoint"] = cfgtmp["authorizationEndpoint"].is_string() ? cfgtmp["authorizationEndpoint"].get<std::string>() : nullptr;
-			config["provider"] = cfgtmp["ssoProvider"].is_string() ? cfgtmp["ssoProvider"].get<std::string>() : nullptr;
+			config["provider"] = cfgtmp["ssoProvider"].is_string() ? cfgtmp["ssoProvider"].get<std::string>() : "";
 			if (!cfgtmp["dns"].is_object()) {
 				cfgtmp["dns"] = json::object();
 				cfgtmp["dns"]["domain"] = "";
@@ -451,7 +451,7 @@ void CV2::initializeNetworks()
 			} else {
 				config["dns"] = cfgtmp["dns"];
 			}
-			config["ipAssignmentPools"] = cfgtmp["assignmentPools"].is_array() ? cfgtmp["assignmentPools"] : json::array();
+			config["ipAssignmentPools"] = cfgtmp["ipAssignmentPools"].is_array() ? cfgtmp["ipAssignmentPools"] : json::array();
 
 			Metrics::network_count++;
 
