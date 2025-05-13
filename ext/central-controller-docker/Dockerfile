@@ -4,7 +4,7 @@ ADD . /ZeroTierOne
 RUN export PATH=$PATH:~/.cargo/bin && cd ZeroTierOne && make clean && make central-controller -j8
 
 FROM golang:bookworm AS go_base
-RUN go install github.com/golang-migrate/migrate/v4/cmd/migrate@latest
+RUN go install -tags 'postgres' github.com/golang-migrate/migrate/v4/cmd/migrate@latest
 
 FROM registry.zerotier.com/zerotier/ctlrun:2025-05-13-01
 COPY --from=builder /ZeroTierOne/zerotier-one /usr/local/bin/zerotier-one
