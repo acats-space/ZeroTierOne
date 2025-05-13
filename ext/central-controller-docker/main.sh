@@ -105,7 +105,11 @@ fi
 
 if [ "$ZT_DB_TYPE" == "cv2" ]; then
     echo "Migrating database (if needed)..."
-    /usr/local/bin/migrate -source file:///migrations -database "postgres://$ZT_DB_USER:$ZT_DB_PASSWORD@$ZT_DB_HOST:$ZT_DB_PORT/$ZT_DB_NAME?x-migrations-table=controller_migrations" up
+    if [ -n "$DB_SERVER_CA" ]; then
+        /usr/local/bin/migrate -source file:///migrations -database "postgres://$ZT_DB_USER:$ZT_DB_PASSWORD@$ZT_DB_HOST:$ZT_DB_PORT/$ZT_DB_NAME?x-migrations-table=controller_migrations&sslmode=verify-full&sslrootcert=$DB_SERVER_CA&sslcert=$DB_CLIENT_CERT&sslkey=$DB_CLIENT_KEY" up  
+    else 
+        /usr/local/bin/migrate -source file:///migrations -database "postgres://$ZT_DB_USER:$ZT_DB_PASSWORD@$ZT_DB_HOST:$ZT_DB_PORT/$ZT_DB_NAME?x-migrations-table=controller_migrations&sslmode=disable" up
+    fi
 fi
 
 if [ -n "$ZT_TEMPORAL_HOST" ] && [ -n "$ZT_TEMPORAL_PORT" ]; then
