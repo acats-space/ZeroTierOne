@@ -79,6 +79,12 @@ private:
 	DB *_psql;
 };
 
+struct NodeOnlineRecord {
+	uint64_t lastSeen;
+	InetAddress physicalAddress;
+	std::string osArch;
+};
+
 } // namespace ZeroTier
 
 #endif // ZT_CONTROLLER_POSTGRESQL_HPP

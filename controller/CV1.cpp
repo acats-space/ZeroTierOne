@@ -286,14 +286,20 @@ void CV1::eraseMember(const uint64_t networkId, const uint64_t memberId)
 	_memberChanged(tmp.first, nullJson, true);
 }
 
-void CV1::nodeIsOnline(const uint64_t networkId, const uint64_t memberId, const InetAddress &physicalAddress)
+void CV1::nodeIsOnline(const uint64_t networkId, const uint64_t memberId, const InetAddress &physicalAddress, const char *osArch)
 {
 	std::lock_guard<std::mutex> l(_lastOnline_l);
-	std::pair<int64_t, InetAddress> &i = _lastOnline[std::pair<uint64_t,uint64_t>(networkId, memberId)];
-	i.first = OSUtils::now();
+	NodeOnlineRecord &i = _lastOnline[std::pair<uint64_t,uint64_t>(networkId, memberId)];
+	i.lastSeen = OSUtils::now();
 	if (physicalAddress) {
-		i.second = physicalAddress;
+		i.physicalAddress = physicalAddress;
 	}
+	i.osArch = std::string(osArch);
+}
+
+void CV1::nodeIsOnline(const uint64_t networkId, const uint64_t memberId, const InetAddress &physicalAddress)
+{
+	this->nodeIsOnline(networkId, memberId, physicalAddress, "unknown/unknown");
 }
 
 AuthInfo CV1::getSSOAuthInfo(const nlohmann::json &member, const std::string &redirectURL)
@@ -1643,7 +1649,7 @@ void CV1::onlineNotification_Postgres()
 		auto c2 = _pool->borrow();
 		try {
 			fprintf(stderr, "%s onlineNotification_Postgres\n", _myAddressStr.c_str());
-			std::unordered_map< std::pair<uint64_t,uint64_t>,std::pair<int64_t,InetAddress>,_PairHasher > lastOnline;
+			std::unordered_map< std::pair<uint64_t,uint64_t>,NodeOnlineRecord,_PairHasher > lastOnline;
 			{
 				std::lock_guard<std::mutex> l(_lastOnline_l);
 				lastOnline.swap(_lastOnline);
@@ -1684,9 +1690,10 @@ void CV1::onlineNotification_Postgres()
 					continue;
 				}
 
-				int64_t ts = i->second.first;
-				std::string ipAddr = i->second.second.toIpString(ipTmp);
+				int64_t ts = i->second.lastSeen;
+				std::string ipAddr = i->second.physicalAddress.toIpString(ipTmp);
 				std::string timestamp = std::to_string(ts);
+				std::string osArch = i->second.osArch;
 
 				std::stringstream memberUpdate;
 				memberUpdate << "INSERT INTO ztc_member_status (network_id, member_id, address, last_updated) VALUES "
@@ -1741,7 +1748,7 @@ void CV1::onlineNotification_Redis()
 		auto start = std::chrono::high_resolution_clock::now();
 		uint64_t count = 0;
 
-		std::unordered_map< std::pair<uint64_t,uint64_t>,std::pair<int64_t,InetAddress>,_PairHasher > lastOnline;
+		std::unordered_map< std::pair<uint64_t,uint64_t>,NodeOnlineRecord,_PairHasher > lastOnline;
 		{
 			std::lock_guard<std::mutex> l(_lastOnline_l);
 			lastOnline.swap(_lastOnline);
@@ -1771,7 +1778,7 @@ void CV1::onlineNotification_Redis()
 }
 
 uint64_t CV1::_doRedisUpdate(sw::redis::Transaction &tx, std::string &controllerId,
-	std::unordered_map< std::pair<uint64_t,uint64_t>,std::pair<int64_t,InetAddress>,_PairHasher > &lastOnline) 
+	std::unordered_map< std::pair<uint64_t,uint64_t>,NodeOnlineRecord,_PairHasher > &lastOnline) 
 
 {
 	nlohmann::json jtmp1, jtmp2;
@@ -1792,9 +1799,10 @@ uint64_t CV1::_doRedisUpdate(sw::redis::Transaction &tx, std::string &controller
 		std::string networkId(nwidTmp);
 		std::string memberId(memTmp);
 
-		int64_t ts = i->second.first;
-		std::string ipAddr = i->second.second.toIpString(ipTmp);
+		int64_t ts = i->second.lastSeen;
+		std::string ipAddr = i->second.physicalAddress.toIpString(ipTmp);
 		std::string timestamp = std::to_string(ts);
+		std::string osArch = i->second.osArch;
 
 		std::unordered_map<std::string, std::string> record = {
 			{"id", memberId},

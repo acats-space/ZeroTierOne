@@ -197,14 +197,20 @@ void CV2::eraseMember(const uint64_t networkId, const uint64_t memberId)
 	_memberChanged(tmp.first, nullJson, true);
 }
 
-void CV2::nodeIsOnline(const uint64_t networkId, const uint64_t memberId, const InetAddress &physicalAddress)
+void CV2::nodeIsOnline(const uint64_t networkId, const uint64_t memberId, const InetAddress &physicalAddress, const char *osArch)
 {
 	std::lock_guard<std::mutex> l(_lastOnline_l);
-	std::pair<int64_t, InetAddress> &i = _lastOnline[std::pair<uint64_t,uint64_t>(networkId, memberId)];
-	i.first = OSUtils::now();
+	NodeOnlineRecord &i = _lastOnline[std::pair<uint64_t,uint64_t>(networkId, memberId)];
+	i.lastSeen = OSUtils::now();
 	if (physicalAddress) {
-		i.second = physicalAddress;
+		i.physicalAddress = physicalAddress;
 	}
+	i.osArch = std::string(osArch);
+}
+
+void CV2::nodeIsOnline(const uint64_t networkId, const uint64_t memberId, const InetAddress &physicalAddress)
+{
+	this->nodeIsOnline(networkId, memberId, physicalAddress, "unknown/unknown");
 }
 
 AuthInfo CV2::getSSOAuthInfo(const nlohmann::json &member, const std::string &redirectURL)
@@ -940,7 +946,7 @@ void CV2::onlineNotificationThread() {
 		try {
 			fprintf(stderr, "%s onlineNotificationThread\n", _myAddressStr.c_str());
 
-			std::unordered_map<std::pair<uint64_t, uint64_t>, std::pair<int64_t, InetAddress>,_PairHasher> lastOnline;
+			std::unordered_map<std::pair<uint64_t, uint64_t>, NodeOnlineRecord,_PairHasher> lastOnline;
 			{
 				std::lock_guard<std::mutex> l(_lastOnline_l);
 				lastOnline.swap(_lastOnline);
@@ -980,18 +986,21 @@ void CV2::onlineNotificationThread() {
 					continue;
 				}
 
-				int64_t ts = i->second.first;
-				std::string ipAddr = i->second.second.toIpString(ipTmp);
+				int64_t ts = i->second.lastSeen;
+				std::string ipAddr = i->second.physicalAddress.toIpString(ipTmp);
 				std::string timestamp = std::to_string(ts);
+				std::string osArch = i->second.osArch;
+				std::vector<std::string> osArchSplit = split(osArch, '/');
 
 				json record = {
 					{ipAddr, ts},
 				};
 
-
-				std::string device_network_insert = "INSERT INTO network_memberships_ctl (device_id, network_id, last_seen) " 
-					"VALUES ('"+w2.esc(memberId)+"', '"+w2.esc(networkId)+"', '"+w2.esc(record.dump())+"'::JSONB) " 
-					"ON CONFLICT (device_id, network_id) DO UPDATE SET last_seen = last_seen || EXCLUDED.last_seen";
+				std::string device_network_insert = "INSERT INTO network_memberships_ctl (device_id, network_id, last_seen, os, arch) " 
+					"VALUES ('"+w2.esc(memberId)+"', '"+w2.esc(networkId)+"', '"+w2.esc(record.dump())+"'::JSONB, "
+					"'"+w2.esc(osArchSplit[0])+"', '"+w2.esc(osArchSplit[1])+"') " 
+					"ON CONFLICT (device_id, network_id) DO UPDATE SET last_seen = last_seen || EXCLUDED.last_seen "
+					"os = EXCLUDED.os, arch = EXCLUDED.arch";
 				pipe.insert(device_network_insert);
 
 				Metrics::pgsql_node_checkin++;

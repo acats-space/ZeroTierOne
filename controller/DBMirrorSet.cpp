@@ -206,12 +206,16 @@ void DBMirrorSet::eraseMember(const uint64_t networkId,const uint64_t memberId)
 	}
 }
 
-void DBMirrorSet::nodeIsOnline(const uint64_t networkId,const uint64_t memberId,const InetAddress &physicalAddress)
-{
+void DBMirrorSet::nodeIsOnline(const uint64_t networkId,const uint64_t memberId,const InetAddress &physicalAddress, const char *osArch) {
 	std::shared_lock<std::shared_mutex> l(_dbs_l);
 	for(auto d=_dbs.begin();d!=_dbs.end();++d) {
 		(*d)->nodeIsOnline(networkId,memberId,physicalAddress);
 	}
+}
+
+void DBMirrorSet::nodeIsOnline(const uint64_t networkId,const uint64_t memberId,const InetAddress &physicalAddress)
+{
+	this->nodeIsOnline(networkId,memberId,physicalAddress,"unknown/unknown");
 }
 
 void DBMirrorSet::onNetworkUpdate(const void *db,uint64_t networkId,const nlohmann::json &network)

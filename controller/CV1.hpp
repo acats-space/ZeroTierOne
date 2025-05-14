@@ -57,6 +57,7 @@ public:
 	virtual void eraseNetwork(const uint64_t networkId);
 	virtual void eraseMember(const uint64_t networkId, const uint64_t memberId);
 	virtual void nodeIsOnline(const uint64_t networkId, const uint64_t memberId, const InetAddress &physicalAddress);
+	virtual void nodeIsOnline(const uint64_t networkId,const uint64_t memberId,const InetAddress &physicalAddress, const char *osArch);
 	virtual AuthInfo getSSOAuthInfo(const nlohmann::json &member, const std::string &redirectURL);
 
 	virtual bool ready() {
@@ -93,7 +94,7 @@ private:
 	void onlineNotification_Postgres();
 	void onlineNotification_Redis();
 	uint64_t _doRedisUpdate(sw::redis::Transaction &tx, std::string &controllerId,
-		std::unordered_map< std::pair<uint64_t,uint64_t>,std::pair<int64_t,InetAddress>,_PairHasher > &lastOnline);
+		std::unordered_map< std::pair<uint64_t,uint64_t>,NodeOnlineRecord,_PairHasher > &lastOnline);
 
 	void configureSmee();
 	void notifyNewMember(const std::string &networkID, const std::string &memberID);
@@ -118,7 +119,7 @@ private:
 	std::thread _commitThread[ZT_CENTRAL_CONTROLLER_COMMIT_THREADS];
 	std::thread _onlineNotificationThread;
 
-	std::unordered_map< std::pair<uint64_t,uint64_t>,std::pair<int64_t,InetAddress>,_PairHasher > _lastOnline;
+	std::unordered_map< std::pair<uint64_t,uint64_t>,NodeOnlineRecord,_PairHasher > _lastOnline;
 
 	mutable std::mutex _lastOnline_l;
 	mutable std::mutex _readyLock;
