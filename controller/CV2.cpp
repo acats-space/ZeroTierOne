@@ -996,7 +996,7 @@ void CV2::onlineNotificationThread() {
 					"VALUES ('"+w2.esc(memberId)+"', '"+w2.esc(networkId)+"', '"+w2.esc(record.dump())+"'::JSONB, "
 					"'"+w2.esc(osArchSplit[0])+"', '"+w2.esc(osArchSplit[1])+"') " 
 					"ON CONFLICT (device_id, network_id) DO UPDATE SET os = EXCLUDED.os, arch = EXCLUDED.arch, "
-					"last_seen = last_seen || EXCLUDED.last_seen";
+					"last_seen = network_memberships_ctl.last_seen || EXCLUDED.last_seen";
 				pipe.insert(device_network_insert);
 
 				Metrics::pgsql_node_checkin++;
