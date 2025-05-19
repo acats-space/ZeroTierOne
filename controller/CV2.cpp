@@ -523,7 +523,6 @@ void CV2::initializeMembers()
 			, std::optional<uint64_t>					// authentication_expiry_time
 			, std::optional<uint64_t>					// creation_time
 			, std::optional<std::string>				// identity
-			, std::optional<std::string>				// last_authorized_credential
 			, std::optional<uint64_t>					// last_authorized_time
 			, std::optional<uint64_t>					// last_deauthorized_time
 			, std::optional<int32_t>					// remote_trace_level
@@ -552,14 +551,13 @@ void CV2::initializeMembers()
 			std::optional<uint64_t> authentication_expiry_time = std::get<7>(row);
 			std::optional<uint64_t> creation_time = std::get<8>(row);
 			std::optional<std::string> identity = std::get<9>(row);
-			std::optional<std::string> last_authorized_credential = std::get<10>(row);
-			std::optional<uint64_t> last_authorized_time = std::get<11>(row);
-			std::optional<uint64_t> last_deauthorized_time = std::get<12>(row);
-			std::optional<int32_t> remote_trace_level = std::get<13>(row);
-			std::optional<std::string> remote_trace_target = std::get<14>(row);
-			std::optional<uint64_t> revision = std::get<15>(row);
-			std::optional<std::string> capabilities = std::get<16>(row);
-			std::optional<std::string> tags = std::get<17>(row);
+			std::optional<uint64_t> last_authorized_time = std::get<10>(row);
+			std::optional<uint64_t> last_deauthorized_time = std::get<11>(row);
+			std::optional<int32_t> remote_trace_level = std::get<12>(row);
+			std::optional<std::string> remote_trace_target = std::get<13>(row);
+			std::optional<uint64_t> revision = std::get<14>(row);
+			std::optional<std::string> capabilities = std::get<15>(row);
+			std::optional<std::string> tags = std::get<16>(row);
 
 			config["objtype"] = "member";
 			config["id"] = memberId;
@@ -577,7 +575,6 @@ void CV2::initializeMembers()
 			}
 			config["capabilities"] = json::parse(capabilities.value_or("[]"));
 			config["creationTime"] = creation_time.value_or(0);
-			config["lastAuthorizedCredential"] = last_authorized_credential.value_or("");
 			config["lastAuthorizedTime"] = last_authorized_time.value_or(0);
 			config["lastDeauthorizedTime"] = last_deauthorized_time.value_or(0);
 			config["noAutoAssignIPs"] = no_auto_assign_ips.value_or(false);
@@ -775,19 +772,19 @@ void CV2::commitThread()
 					pqxx::result res = w.exec_params0(
 						"INSERT INTO network_memberships_ctl (device_id, network_id, authorized, active_bridge, ip_assignments, "
 						"no_auto_assign_ips, sso_exempt, authentication_expiry_time, capabilities, creation_time, "
-						"identity, last_authorized_credential, last_authorized_time, last_deauthorized_time, "
+						"identity, last_authorized_time, last_deauthorized_time, "
 						"remote_trace_level, remote_trace_target, revision, tags, version_major, version_minor, "
 						"version_revision, version_protocol) "
 						"VALUES ($1, $2, $3, $4, $5, $6, $7, TO_TIMESTAMP($8::double precision/1000), $9, "
-						"TO_TIMESTAMP($10::double precision/1000), $11, 12, TO_TIMESTAMP($13::double precision/1000), "
-						"TO_TIMESTAMP($14::double precision/1000), $15, $16, $17, $18, $19, $20, $21, $22) "
+						"TO_TIMESTAMP($10::double precision/1000), $11, TO_TIMESTAMP($12::double precision/1000), "
+						"TO_TIMESTAMP($13::double precision/1000), $14, $15, $16, $17, $18, $19, $20, $21) "
 						"ON CONFLICT (device_id, network_id) DO UPDATE SET "
 						"authorized = EXCLUDED.authorized, active_bridge = EXCLUDED.active_bridge, "
 						"ip_assignments = EXCLUDED.ip_assignments, no_auto_assign_ips = EXCLUDED.no_auto_assign_ips, "
 						"sso_exempt = EXCLUDED.sso_exempt, authentication_expiry_time = EXCLUDED.authentication_expiry_time, "
 						"capabilities = EXCLUDED.capabilities, creation_time = EXCLUDED.creation_time, "
-						"identity = EXCLUDED.identity, last_authorized_credential = EXCLUDED.last_authorized_credential, "
-						"last_authorized_time = EXCLUDED.last_authorized_time, last_deauthorized_time = EXCLUDED.last_deauthorized_time, "
+						"identity = EXCLUDED.identity, last_authorized_time = EXCLUDED.last_authorized_time, "
+						"last_deauthorized_time = EXCLUDED.last_deauthorized_time, "
 						"remote_trace_level = EXCLUDED.remote_trace_level, remote_trace_target = EXCLUDED.remote_trace_target, "
 						"revision = EXCLUDED.revision, tags = EXCLUDED.tags, version_major = EXCLUDED.version_major, "
 						"version_minor = EXCLUDED.version_minor, version_revision = EXCLUDED.version_revision, "
@@ -803,7 +800,6 @@ void CV2::commitThread()
 						OSUtils::jsonDump(config["capabilities"], -1),
 						(uint64_t)config["creationTime"],
 						OSUtils::jsonString(config["identity"], ""),
-						OSUtils::jsonString(config["lastAuthorizedCredential"], ""),
 						(uint64_t)config["lastAuthorizedTime"],
 						(uint64_t)config["lastDeauthorizedTime"],
 						(int)config["remoteTraceLevel"],
