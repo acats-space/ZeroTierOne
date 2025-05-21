@@ -748,9 +748,6 @@ void CV2::commitThread()
 					
 					memberId = config["id"];
 					networkId = config["nwid"];
-					
-					std::string cfgDump = OSUtils::jsonDump(config, 2);
-					fprintf(stderr, "Member save %s-%s: %s\n", networkId.c_str(), memberId.c_str(), cfgDump.c_str());
 
 					std::string target = "NULL";
 					if (!config["remoteTraceTarget"].is_null()) {
@@ -850,6 +847,9 @@ void CV2::commitThread()
 						fprintf(stderr, "%s: Can't notify of change.  Error parsing nwid or memberid: %llu-%llu\n", _myAddressStr.c_str(), (unsigned long long)nwidInt, (unsigned long long)memberidInt);
 					}
 				} catch (pqxx::data_exception &e) {
+					std::string cfgDump = OSUtils::jsonDump(config, 2);
+					fprintf(stderr, "Member save %s-%s: %s\n", networkId.c_str(), memberId.c_str(), cfgDump.c_str());
+					
 					const pqxx::sql_error *s=dynamic_cast<const pqxx::sql_error *>(&e);
 					fprintf(stderr, "%s ERROR: Error updating member: %s\n", _myAddressStr.c_str(), e.what());
 					if (s) {
