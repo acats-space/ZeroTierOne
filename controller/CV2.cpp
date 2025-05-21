@@ -745,10 +745,13 @@ void CV2::commitThread()
 				std::string networkId;
 				try {
 					pqxx::work w(*c->c);
-
+					
 					memberId = config["id"];
 					networkId = config["nwid"];
 					
+					std::string cfgDump = OSUtils::jsonDump(config, 2);
+					fprintf(stderr, "Member save %s-%s: %s\n", networkId.c_str(), memberId.c_str(), cfgDump.c_str());
+
 					std::string target = "NULL";
 					if (!config["remoteTraceTarget"].is_null()) {
 						target = config["remoteTraceTarget"];
@@ -846,6 +849,12 @@ void CV2::commitThread()
 					} else {
 						fprintf(stderr, "%s: Can't notify of change.  Error parsing nwid or memberid: %llu-%llu\n", _myAddressStr.c_str(), (unsigned long long)nwidInt, (unsigned long long)memberidInt);
 					}
+				} catch (pqxx::data_exception &e) {
+					const pqxx::sql_error *s=dynamic_cast<const pqxx::sql_error *>(&e);
+					fprintf(stderr, "%s ERROR: Error updating member: %s\n", _myAddressStr.c_str(), e.what());
+					if (s) {
+						fprintf(stderr, "%s ERROR: SQL error: %s\n", _myAddressStr.c_str(), s->query().c_str());
+					}
 				} catch (std::exception &e) {
 					fprintf(stderr, "%s ERROR: Error updating member %s-%s: %s\n", _myAddressStr.c_str(), networkId.c_str(), memberId.c_str(), e.what());
 				}
@@ -881,6 +890,12 @@ void CV2::commitThread()
 						_networkChanged(nwOrig, nwNew, qitem.second);
 					} else {
 						fprintf(stderr, "%s: Can't notify network changed: %llu\n", _myAddressStr.c_str(), (unsigned long long)nwidInt);
+					}
+				} catch (pqxx::data_exception &e) {
+					const pqxx::sql_error *s=dynamic_cast<const pqxx::sql_error *>(&e);
+					fprintf(stderr, "%s ERROR: Error updating network: %s\n", _myAddressStr.c_str(), e.what());
+					if (s) {
+						fprintf(stderr, "%s ERROR: SQL error: %s\n", _myAddressStr.c_str(), s->query().c_str());
 					}
 				} catch (std::exception &e) {
 					fprintf(stderr, "%s ERROR: Error updating network: %s\n", _myAddressStr.c_str(), e.what());
