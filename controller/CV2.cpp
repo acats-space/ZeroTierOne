@@ -987,6 +987,12 @@ void CV2::onlineNotificationThread() {
 				std::string timestamp = std::to_string(ts);
 				std::string osArch = i->second.osArch;
 				std::vector<std::string> osArchSplit = split(osArch, '/');
+				std::string os = osArchSplit[0];
+				std::string arch = osArchSplit[1];
+
+				if (ipAddr.empty()) {
+					ipAddr = "relayed";
+				}
 
 				json record = {
 					{ipAddr, ts},
@@ -994,7 +1000,7 @@ void CV2::onlineNotificationThread() {
 
 				std::string device_network_insert = "INSERT INTO network_memberships_ctl (device_id, network_id, last_seen, os, arch) " 
 					"VALUES ('"+w2.esc(memberId)+"', '"+w2.esc(networkId)+"', '"+w2.esc(record.dump())+"'::JSONB, "
-					"'"+w2.esc(osArchSplit[0])+"', '"+w2.esc(osArchSplit[1])+"') " 
+					"'"+w2.esc(os)+"', '"+w2.esc(arch)+"') " 
 					"ON CONFLICT (device_id, network_id) DO UPDATE SET os = EXCLUDED.os, arch = EXCLUDED.arch, "
 					"last_seen = network_memberships_ctl.last_seen || EXCLUDED.last_seen";
 				pipe.insert(device_network_insert);
