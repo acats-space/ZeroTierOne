@@ -856,7 +856,8 @@ void CV2::commitThread()
 						fprintf(stderr, "%s ERROR: SQL error: %s\n", _myAddressStr.c_str(), s->query().c_str());
 					}
 				} catch (std::exception &e) {
-					fprintf(stderr, "%s ERROR: Error updating member %s-%s: %s\n", _myAddressStr.c_str(), networkId.c_str(), memberId.c_str(), e.what());
+					std::string cfgDump = OSUtils::jsonDump(config, 2);
+					fprintf(stderr, "%s ERROR: Error updating member %s-%s: %s\njsonDump: %s\n", _myAddressStr.c_str(), networkId.c_str(), memberId.c_str(), e.what(), cfgDump.c_str());
 				}
 			} else if (objtype == "network") {
 				try {
