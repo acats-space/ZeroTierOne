@@ -6,7 +6,7 @@ DEFS=
 LIBS=
 
 include objects.mk
-OBJS+=osdep/NetBSDEthernetTap.o ext/lz4/lz4.o ext/json-parser/json.o ext/http-parser/http_parser.o
+OBJS+=osdep/NetBSDEthernetTap.o ext/lz4/lz4.o ext/json-parser/json.o ext/http-parser/http_parser.o diagnostic/dump_interfaces_netbsd.o
 
 # "make official" is a shortcut for this
 ifeq ($(ZT_OFFICIAL_RELEASE),1)
@@ -35,11 +35,12 @@ else
 endif
 
 CXXFLAGS+=$(CFLAGS) -fno-rtti -fpermissive
+CPPFLAGS += -I.
 
 all:	one
 
-one:	$(OBJS) service/OneService.o one.o
-	$(CXX) $(CXXFLAGS) $(LDFLAGS)  -o zerotier-one $(OBJS) service/OneService.o one.o $(LIBS)
+one:	$(OBJS) service/OneService.o one.o diagnostic/dump_sections.o diagnostic/dump_interfaces_netbsd.o
+	$(CXX) $(CXXFLAGS) $(LDFLAGS)  -o zerotier-one $(OBJS) service/OneService.o one.o diagnostic/dump_sections.o diagnostic/dump_interfaces_netbsd.o $(LIBS)
 	$(STRIP) zerotier-one
 	ln -sf zerotier-one zerotier-idtool
 	ln -sf zerotier-one zerotier-cli

@@ -28,7 +28,7 @@ TIMESTAMP=$(shell date +"%Y%m%d%H%M")
 DEFS+=-DZT_BUILD_PLATFORM=$(ZT_BUILD_PLATFORM) -DZT_BUILD_ARCHITECTURE=$(ZT_BUILD_ARCHITECTURE)
 
 include objects.mk
-ONE_OBJS+=osdep/MacEthernetTap.o osdep/MacKextEthernetTap.o osdep/MacDNSHelper.o ext/http-parser/http_parser.o
+ONE_OBJS+=osdep/MacEthernetTap.o osdep/MacKextEthernetTap.o osdep/MacDNSHelper.o ext/http-parser/http_parser.o diagnostic/dump_interfaces_apple.o
 LIBS+=-framework CoreServices -framework SystemConfiguration -framework CoreFoundation -framework Security
 
 # Official releases are signed with our Apple cert and apply software updates by default
@@ -103,6 +103,8 @@ ifeq ($(ZT_VAULT_SUPPORT),1)
 	LIBS+=-lcurl
 endif
 
+CPPFLAGS += -I.
+
 all: one
 
 ext/x64-salsa2012-asm/salsa2012.o:
@@ -115,8 +117,8 @@ mac-agent: FORCE
 osdep/MacDNSHelper.o: osdep/MacDNSHelper.mm
 	$(CXX) $(CXXFLAGS) -c osdep/MacDNSHelper.mm -o osdep/MacDNSHelper.o 
 
-one:	zeroidc $(CORE_OBJS) $(ONE_OBJS) one.o mac-agent 
-	$(CXX) $(CXXFLAGS) -o zerotier-one $(CORE_OBJS) $(ONE_OBJS) one.o $(LIBS) rustybits/target/libzeroidc.a
+one:	zeroidc $(CORE_OBJS) $(ONE_OBJS) one.o diagnostic/dump_sections.o diagnostic/dump_interfaces_apple.o mac-agent 
+	$(CXX) $(CXXFLAGS) -o zerotier-one $(CORE_OBJS) $(ONE_OBJS) one.o diagnostic/dump_sections.o diagnostic/dump_interfaces_apple.o $(LIBS) rustybits/target/libzeroidc.a
 	# $(STRIP) zerotier-one
 	ln -sf zerotier-one zerotier-idtool
 	ln -sf zerotier-one zerotier-cli

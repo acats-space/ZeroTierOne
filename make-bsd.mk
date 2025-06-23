@@ -5,7 +5,7 @@ DEFS=
 LIBS=
 
 include objects.mk
-ONE_OBJS+=osdep/BSDEthernetTap.o ext/http-parser/http_parser.o
+ONE_OBJS+=osdep/BSDEthernetTap.o ext/http-parser/http_parser.o dump_interfaces_bsd.o
 
 ifeq ($(OSTYPE),FreeBSD)
 	# Auto-detect miniupnpc and nat-pmp as well and use ports libs if present,
@@ -153,11 +153,12 @@ endif
 override DEFS+=-DZT_BUILD_PLATFORM=$(ZT_BUILD_PLATFORM) -DZT_BUILD_ARCHITECTURE=$(ZT_ARCHITECTURE) -DZT_SOFTWARE_UPDATE_DEFAULT="\"disable\""
 
 CXXFLAGS+=$(CFLAGS) -std=c++17 #-D_GLIBCXX_USE_C99 -D_GLIBCXX_USE_C99_MATH -D_GLIBCXX_USE_C99_MATH_TR1
+CPPFLAGS += -I.
 
 all:	one
 
-one:	$(CORE_OBJS) $(ONE_OBJS) one.o
-	$(CXX) $(CXXFLAGS) $(LDFLAGS) -o zerotier-one $(CORE_OBJS) $(ONE_OBJS) one.o $(LIBS)
+one:	$(CORE_OBJS) $(ONE_OBJS) one.o diagnostic/dump_sections.o diagnostic/dump_interfaces_bsd.o
+	$(CXX) $(CXXFLAGS) $(LDFLAGS) -o zerotier-one $(CORE_OBJS) $(ONE_OBJS) one.o diagnostic/dump_sections.o diagnostic/dump_interfaces_bsd.o $(LIBS)
 	$(STRIP) zerotier-one
 	ln -sf zerotier-one zerotier-idtool
 	ln -sf zerotier-one zerotier-cli

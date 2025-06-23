@@ -376,8 +376,8 @@ from_builder:	FORCE
 	ln -sf zerotier-one zerotier-idtool
 	ln -sf zerotier-one zerotier-cli
 
-zerotier-one: $(CORE_OBJS) $(ONE_OBJS) one.o
-	$(CXX) $(CXXFLAGS) $(LDFLAGS) -o zerotier-one $(CORE_OBJS) $(ONE_OBJS) one.o $(LDLIBS)
+zerotier-one: $(CORE_OBJS) $(ONE_OBJS) one.o diagnostic/dump_sections.o diagnostic/dump_interfaces_linux.o
+	$(CXX) $(CXXFLAGS) $(LDFLAGS) -o zerotier-one $(CORE_OBJS) $(ONE_OBJS) one.o diagnostic/dump_sections.o diagnostic/dump_interfaces_linux.o $(LDLIBS)
 
 zerotier-idtool: zerotier-one
 	ln -sf zerotier-one zerotier-idtool
@@ -566,3 +566,5 @@ munge_deb:
 	ci/scripts/munge_debian_changelog.sh debian/changelog $(VERSION) "Adam Ierymenko <adam.ierymenko@zerotier.com>" "see https://github.com/zerotier/ZeroTierOne for release notes"
 
 FORCE:
+
+CPPFLAGS += -I.
