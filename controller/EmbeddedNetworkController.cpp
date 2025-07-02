@@ -1408,8 +1408,8 @@ void EmbeddedNetworkController::_request(
 #endif
 	char osArch[256];
 	metaData.get(ZT_NETWORKCONFIG_REQUEST_METADATA_KEY_OS_ARCH, osArch, sizeof(osArch));
-	fprintf(stderr, "Network Config Request: nwid=%.16llx, nodeid=%.10llx, osArch=%s\n",
-		nwid, identity.address().toInt(), osArch);
+	// fprintf(stderr, "Network Config Request: nwid=%.16llx, nodeid=%.10llx, osArch=%s\n",
+	// 	nwid, identity.address().toInt(), osArch);
 	_db.nodeIsOnline(nwid,identity.address().toInt(),fromAddr, osArch);
 #ifdef CENTRAL_CONTROLLER_REQUEST_BENCHMARK
 	b2.stop();
