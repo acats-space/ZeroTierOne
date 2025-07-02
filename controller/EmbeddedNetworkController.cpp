@@ -1406,7 +1406,9 @@ void EmbeddedNetworkController::_request(
 	c2++;
 	b2.start();
 #endif
-	_db.nodeIsOnline(nwid,identity.address().toInt(),fromAddr);
+	char osArch[256];
+	metaData.get(ZT_NETWORKCONFIG_REQUEST_METADATA_KEY_OS_ARCH, osArch, sizeof(osArch));
+	_db.nodeIsOnline(nwid,identity.address().toInt(),fromAddr, osArch);
 #ifdef CENTRAL_CONTROLLER_REQUEST_BENCHMARK
 	b2.stop();
 
