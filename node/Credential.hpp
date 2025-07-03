@@ -14,39 +14,36 @@
 #ifndef ZT_CREDENTIAL_HPP
 #define ZT_CREDENTIAL_HPP
 
-#include <string>
+#include "Constants.hpp"
+
 #include <memory>
 #include <stdexcept>
-
+#include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <stdint.h>
 #include <string.h>
-
-#include "Constants.hpp"
+#include <string>
 
 namespace ZeroTier {
 
 /**
  * Base class for credentials
  */
-class Credential
-{
-public:
+class Credential {
+  public:
 	/**
 	 * Do not change type code IDs -- these are used in Revocation objects and elsewhere
 	 */
-	enum Type
-	{
+	enum Type {
 		CREDENTIAL_TYPE_NULL = 0,
-		CREDENTIAL_TYPE_COM = 1,        // CertificateOfMembership
+		CREDENTIAL_TYPE_COM = 1,   // CertificateOfMembership
 		CREDENTIAL_TYPE_CAPABILITY = 2,
 		CREDENTIAL_TYPE_TAG = 3,
-		CREDENTIAL_TYPE_COO = 4,        // CertificateOfOwnership
+		CREDENTIAL_TYPE_COO = 4,   // CertificateOfOwnership
 		CREDENTIAL_TYPE_REVOCATION = 6
 	};
 };
 
-} // namespace ZeroTier
+}	// namespace ZeroTier
 
 #endif

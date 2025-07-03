@@ -17,18 +17,16 @@
 
 #include "../node/Constants.hpp"
 #include "../node/SHA512.hpp"
-#include "EmbeddedNetworkController.hpp"
 #include "../version.h"
+#include "EmbeddedNetworkController.hpp"
 #include "Redis.hpp"
 
-#include <smeeclient.h>
-
-#include <libpq-fe.h>
-#include <sstream>
-#include <iomanip>
-#include <climits>
 #include <chrono>
-
+#include <climits>
+#include <iomanip>
+#include <libpq-fe.h>
+#include <smeeclient.h>
+#include <sstream>
 
 // #define REDIS_TRACE 1
 
@@ -38,13 +36,12 @@ namespace {
 
 static const int DB_MINIMUM_VERSION = 38;
 
-static const char *_timestr()
+static const char* _timestr()
 {
-
 	time_t t = time(0);
-	char *ts = ctime(&t);
-	char *p = ts;
-	if (!p)
+	char* ts = ctime(&t);
+	char* p = ts;
+	if (! p)
 		return "";
 	while (*p) {
 		if (*p == '\n') {
@@ -73,97 +70,96 @@ std::string join(const std::vector<std::string> &elements, const char * const se
 }
 */
 
-std::vector<std::string> split(std::string str, char delim){
+std::vector<std::string> split(std::string str, char delim)
+{
 	std::istringstream iss(str);
 	std::vector<std::string> tokens;
 	std::string item;
-	while(std::getline(iss, item, delim)) {
+	while (std::getline(iss, item, delim)) {
 		tokens.push_back(item);
 	}
 	return tokens;
 }
 
-std::string url_encode(const std::string &value) {
-    std::ostringstream escaped;
-    escaped.fill('0');
-    escaped << std::hex;
+std::string url_encode(const std::string& value)
+{
+	std::ostringstream escaped;
+	escaped.fill('0');
+	escaped << std::hex;
 
-    for (std::string::const_iterator i = value.begin(), n = value.end(); i != n; ++i) {
-        std::string::value_type c = (*i);
+	for (std::string::const_iterator i = value.begin(), n = value.end(); i != n; ++i) {
+		std::string::value_type c = (*i);
 
-        // Keep alphanumeric and other accepted characters intact
-        if (isalnum(c) || c == '-' || c == '_' || c == '.' || c == '~') {
-            escaped << c;
-            continue;
-        }
+		// Keep alphanumeric and other accepted characters intact
+		if (isalnum(c) || c == '-' || c == '_' || c == '.' || c == '~') {
+			escaped << c;
+			continue;
+		}
 
-        // Any other characters are percent-encoded
-        escaped << std::uppercase;
-        escaped << '%' << std::setw(2) << int((unsigned char) c);
-        escaped << std::nouppercase;
-    }
+		// Any other characters are percent-encoded
+		escaped << std::uppercase;
+		escaped << '%' << std::setw(2) << int((unsigned char)c);
+		escaped << std::nouppercase;
+	}
 
-    return escaped.str();
+	return escaped.str();
 }
 
-} // anonymous namespace
+}	// anonymous namespace
 
 using namespace ZeroTier;
 
-
-MemberNotificationReceiver::MemberNotificationReceiver(PostgreSQL *p, pqxx::connection &c, const std::string &channel)
-	: pqxx::notification_receiver(c, channel)
-	, _psql(p)
+MemberNotificationReceiver::MemberNotificationReceiver(PostgreSQL* p, pqxx::connection& c, const std::string& channel) : pqxx::notification_receiver(c, channel), _psql(p)
 {
 	fprintf(stderr, "initialize MemberNotificationReceiver\n");
 }
-	
 
-void MemberNotificationReceiver::operator() (const std::string &payload, int packend_pid) {
+void MemberNotificationReceiver::operator()(const std::string& payload, int packend_pid)
+{
 	fprintf(stderr, "Member Notification received: %s\n", payload.c_str());
 	Metrics::pgsql_mem_notification++;
 	json tmp(json::parse(payload));
-	json &ov = tmp["old_val"];
-	json &nv = tmp["new_val"];
+	json& ov = tmp["old_val"];
+	json& nv = tmp["new_val"];
 	json oldConfig, newConfig;
-	if (ov.is_object()) oldConfig = ov;
-	if (nv.is_object()) newConfig = nv;
+	if (ov.is_object())
+		oldConfig = ov;
+	if (nv.is_object())
+		newConfig = nv;
 	if (oldConfig.is_object() || newConfig.is_object()) {
-		_psql->_memberChanged(oldConfig,newConfig,(_psql->_ready>=2));
+		_psql->_memberChanged(oldConfig, newConfig, (_psql->_ready >= 2));
 		fprintf(stderr, "payload sent\n");
 	}
 }
 
-
-NetworkNotificationReceiver::NetworkNotificationReceiver(PostgreSQL *p, pqxx::connection &c, const std::string &channel)
-	: pqxx::notification_receiver(c, channel)
-	, _psql(p)
+NetworkNotificationReceiver::NetworkNotificationReceiver(PostgreSQL* p, pqxx::connection& c, const std::string& channel) : pqxx::notification_receiver(c, channel), _psql(p)
 {
 	fprintf(stderr, "initialize NetworkNotificationReceiver\n");
 }
 
-void NetworkNotificationReceiver::operator() (const std::string &payload, int packend_pid) {
+void NetworkNotificationReceiver::operator()(const std::string& payload, int packend_pid)
+{
 	fprintf(stderr, "Network Notification received: %s\n", payload.c_str());
 	Metrics::pgsql_net_notification++;
 	json tmp(json::parse(payload));
-	json &ov = tmp["old_val"];
-	json &nv = tmp["new_val"];
+	json& ov = tmp["old_val"];
+	json& nv = tmp["new_val"];
 	json oldConfig, newConfig;
-	if (ov.is_object()) oldConfig = ov;
-	if (nv.is_object()) newConfig = nv;
+	if (ov.is_object())
+		oldConfig = ov;
+	if (nv.is_object())
+		newConfig = nv;
 	if (oldConfig.is_object() || newConfig.is_object()) {
-		_psql->_networkChanged(oldConfig,newConfig,(_psql->_ready>=2));
+		_psql->_networkChanged(oldConfig, newConfig, (_psql->_ready >= 2));
 		fprintf(stderr, "payload sent\n");
 	}
 }
 
-using Attrs = std::vector<std::pair<std::string, std::string>>;
+using Attrs = std::vector<std::pair<std::string, std::string> >;
 using Item = std::pair<std::string, Attrs>;
 using ItemStream = std::vector<Item>;
 
-
-
-PostgreSQL::PostgreSQL(const Identity &myId, const char *path, int listenPort, RedisConfig *rc)
+PostgreSQL::PostgreSQL(const Identity& myId, const char* path, int listenPort, RedisConfig* rc)
 	: DB()
 	, _pool()
 	, _myId(myId)
@@ -183,11 +179,10 @@ PostgreSQL::PostgreSQL(const Identity &myId, const char *path, int listenPort, R
 	_myAddressStr = myId.address().toString(myAddress);
 	_connString = std::string(path);
 	auto f = std::make_shared<PostgresConnFactory>(_connString);
-	_pool = std::make_shared<ConnectionPool<PostgresConnection> >(
-		15, 5, std::static_pointer_cast<ConnectionFactory>(f));
-	
+	_pool = std::make_shared<ConnectionPool<PostgresConnection> >(15, 5, std::static_pointer_cast<ConnectionFactory>(f));
+
 	memset(_ssoPsk, 0, sizeof(_ssoPsk));
-	char *const ssoPskHex = getenv("ZT_SSO_PSK");
+	char* const ssoPskHex = getenv("ZT_SSO_PSK");
 #ifdef ZT_TRACE
 	fprintf(stderr, "ZT_SSO_PSK: %s\n", ssoPskHex);
 #endif
@@ -197,16 +192,16 @@ PostgreSQL::PostgreSQL(const Identity &myId, const char *path, int listenPort, R
 		// it will be padded at the end with zeroes. If longer, it'll be truncated.
 		Utils::unhex(ssoPskHex, _ssoPsk, sizeof(_ssoPsk));
 	}
-	const char *redisMemberStatus = getenv("ZT_REDIS_MEMBER_STATUS");
+	const char* redisMemberStatus = getenv("ZT_REDIS_MEMBER_STATUS");
 	if (redisMemberStatus && (strcmp(redisMemberStatus, "true") == 0)) {
-	    _redisMemberStatus = true;
+		_redisMemberStatus = true;
 		fprintf(stderr, "Using redis for member status\n");
 	}
 
 	auto c = _pool->borrow();
-	pqxx::work txn{*c->c};
+	pqxx::work txn { *c->c };
 
-	pqxx::row r{txn.exec1("SELECT version FROM ztc_database")};
+	pqxx::row r { txn.exec1("SELECT version FROM ztc_database") };
 	int dbVersion = r[0].as<int>();
 	txn.commit();
 
@@ -232,14 +227,15 @@ PostgreSQL::PostgreSQL(const Identity &myId, const char *path, int listenPort, R
 		if (_rc->clusterMode) {
 			fprintf(stderr, "Using Redis in Cluster Mode\n");
 			_cluster = std::make_shared<sw::redis::RedisCluster>(opts, poolOpts);
-		} else {
+		}
+		else {
 			fprintf(stderr, "Using Redis in Standalone Mode\n");
 			_redis = std::make_shared<sw::redis::Redis>(opts, poolOpts);
 		}
 	}
 
 	_readyLock.lock();
-	
+
 	fprintf(stderr, "[%s] NOTICE: %.10llx controller PostgreSQL waiting for initial data download..." ZT_EOL_S, ::_timestr(), (unsigned long long)_myAddress.toInt());
 	_waitNoticePrinted = true;
 
@@ -277,28 +273,29 @@ PostgreSQL::~PostgreSQL()
 	_onlineNotificationThread.join();
 }
 
-void PostgreSQL::configureSmee() 
+void PostgreSQL::configureSmee()
 {
-	const char *TEMPORAL_SCHEME = "ZT_TEMPORAL_SCHEME";
-	const char *TEMPORAL_HOST = "ZT_TEMPORAL_HOST";
-	const char *TEMPORAL_PORT = "ZT_TEMPORAL_PORT";
-	const char *TEMPORAL_NAMESPACE = "ZT_TEMPORAL_NAMESPACE";
-	const char *SMEE_TASK_QUEUE = "ZT_SMEE_TASK_QUEUE";
+	const char* TEMPORAL_SCHEME = "ZT_TEMPORAL_SCHEME";
+	const char* TEMPORAL_HOST = "ZT_TEMPORAL_HOST";
+	const char* TEMPORAL_PORT = "ZT_TEMPORAL_PORT";
+	const char* TEMPORAL_NAMESPACE = "ZT_TEMPORAL_NAMESPACE";
+	const char* SMEE_TASK_QUEUE = "ZT_SMEE_TASK_QUEUE";
 
-	const char *scheme = getenv(TEMPORAL_SCHEME);
+	const char* scheme = getenv(TEMPORAL_SCHEME);
 	if (scheme == NULL) {
 		scheme = "http";
 	}
-	const char *host = getenv(TEMPORAL_HOST);
-	const char *port = getenv(TEMPORAL_PORT);
-	const char *ns = getenv(TEMPORAL_NAMESPACE);
-	const char *task_queue = getenv(SMEE_TASK_QUEUE);
+	const char* host = getenv(TEMPORAL_HOST);
+	const char* port = getenv(TEMPORAL_PORT);
+	const char* ns = getenv(TEMPORAL_NAMESPACE);
+	const char* task_queue = getenv(SMEE_TASK_QUEUE);
 
 	if (scheme != NULL && host != NULL && port != NULL && ns != NULL && task_queue != NULL) {
 		fprintf(stderr, "creating smee client\n");
 		std::string hostPort = std::string(scheme) + std::string("://") + std::string(host) + std::string(":") + std::string(port);
 		this->_smee = smeeclient::smee_client_new(hostPort.c_str(), ns, task_queue);
-	} else {
+	}
+	else {
 		fprintf(stderr, "Smee client not configured\n");
 	}
 }
@@ -314,54 +311,59 @@ bool PostgreSQL::waitForReady()
 
 bool PostgreSQL::isReady()
 {
-	return ((_ready == 2)&&(_connected));
+	return ((_ready == 2) && (_connected));
 }
 
-bool PostgreSQL::save(nlohmann::json &record,bool notifyListeners)
+bool PostgreSQL::save(nlohmann::json& record, bool notifyListeners)
 {
 	bool modified = false;
 	try {
-		if (!record.is_object()) {
+		if (! record.is_object()) {
 			fprintf(stderr, "record is not an object?!?\n");
 			return false;
 		}
 		const std::string objtype = record["objtype"];
 		if (objtype == "network") {
-			//fprintf(stderr, "network save\n");
-			const uint64_t nwid = OSUtils::jsonIntHex(record["id"],0ULL);
+			// fprintf(stderr, "network save\n");
+			const uint64_t nwid = OSUtils::jsonIntHex(record["id"], 0ULL);
 			if (nwid) {
 				nlohmann::json old;
-				get(nwid,old);
-				if ((!old.is_object())||(!_compareRecords(old,record))) {
-					record["revision"] = OSUtils::jsonInt(record["revision"],0ULL) + 1ULL;
-					_commitQueue.post(std::pair<nlohmann::json,bool>(record,notifyListeners));
+				get(nwid, old);
+				if ((! old.is_object()) || (! _compareRecords(old, record))) {
+					record["revision"] = OSUtils::jsonInt(record["revision"], 0ULL) + 1ULL;
+					_commitQueue.post(std::pair<nlohmann::json, bool>(record, notifyListeners));
 					modified = true;
 				}
 			}
-		} else if (objtype == "member") {
+		}
+		else if (objtype == "member") {
 			std::string networkId = record["nwid"];
 			std::string memberId = record["id"];
-			const uint64_t nwid = OSUtils::jsonIntHex(record["nwid"],0ULL);
-			const uint64_t id = OSUtils::jsonIntHex(record["id"],0ULL);
-			//fprintf(stderr, "member save %s-%s\n", networkId.c_str(), memberId.c_str());
-			if ((id)&&(nwid)) {
-				nlohmann::json network,old;
-				get(nwid,network,id,old);
-				if ((!old.is_object())||(!_compareRecords(old,record))) {
-					//fprintf(stderr, "commit queue post\n");
-					record["revision"] = OSUtils::jsonInt(record["revision"],0ULL) + 1ULL;
-					_commitQueue.post(std::pair<nlohmann::json,bool>(record,notifyListeners));
+			const uint64_t nwid = OSUtils::jsonIntHex(record["nwid"], 0ULL);
+			const uint64_t id = OSUtils::jsonIntHex(record["id"], 0ULL);
+			// fprintf(stderr, "member save %s-%s\n", networkId.c_str(), memberId.c_str());
+			if ((id) && (nwid)) {
+				nlohmann::json network, old;
+				get(nwid, network, id, old);
+				if ((! old.is_object()) || (! _compareRecords(old, record))) {
+					// fprintf(stderr, "commit queue post\n");
+					record["revision"] = OSUtils::jsonInt(record["revision"], 0ULL) + 1ULL;
+					_commitQueue.post(std::pair<nlohmann::json, bool>(record, notifyListeners));
 					modified = true;
-				} else {
-					//fprintf(stderr, "no change\n");
+				}
+				else {
+					// fprintf(stderr, "no change\n");
 				}
 			}
-		} else {
+		}
+		else {
 			fprintf(stderr, "uhh waaat\n");
 		}
-	} catch (std::exception &e) {
+	}
+	catch (std::exception& e) {
 		fprintf(stderr, "Error on PostgreSQL::save: %s\n", e.what());
-	} catch (...) {
+	}
+	catch (...) {
 		fprintf(stderr, "Unknown error on PostgreSQL::save\n");
 	}
 	return modified;
@@ -373,7 +375,7 @@ void PostgreSQL::eraseNetwork(const uint64_t networkId)
 	char tmp2[24];
 	waitForReady();
 	Utils::hex(networkId, tmp2);
-	std::pair<nlohmann::json,bool> tmp;
+	std::pair<nlohmann::json, bool> tmp;
 	tmp.first["id"] = tmp2;
 	tmp.first["objtype"] = "_delete_network";
 	tmp.second = true;
@@ -387,7 +389,7 @@ void PostgreSQL::eraseMember(const uint64_t networkId, const uint64_t memberId)
 	fprintf(stderr, "PostgreSQL::eraseMember\n");
 	char tmp2[24];
 	waitForReady();
-	std::pair<nlohmann::json,bool> tmp, nw;
+	std::pair<nlohmann::json, bool> tmp, nw;
 	Utils::hex(networkId, tmp2);
 	tmp.first["nwid"] = tmp2;
 	Utils::hex(memberId, tmp2);
@@ -399,22 +401,22 @@ void PostgreSQL::eraseMember(const uint64_t networkId, const uint64_t memberId)
 	_memberChanged(tmp.first, nullJson, true);
 }
 
-void PostgreSQL::nodeIsOnline(const uint64_t networkId, const uint64_t memberId, const InetAddress &physicalAddress)
+void PostgreSQL::nodeIsOnline(const uint64_t networkId, const uint64_t memberId, const InetAddress& physicalAddress)
 {
 	std::lock_guard<std::mutex> l(_lastOnline_l);
-	std::pair<int64_t, InetAddress> &i = _lastOnline[std::pair<uint64_t,uint64_t>(networkId, memberId)];
+	std::pair<int64_t, InetAddress>& i = _lastOnline[std::pair<uint64_t, uint64_t>(networkId, memberId)];
 	i.first = OSUtils::now();
 	if (physicalAddress) {
 		i.second = physicalAddress;
 	}
 }
 
-AuthInfo PostgreSQL::getSSOAuthInfo(const nlohmann::json &member, const std::string &redirectURL)
+AuthInfo PostgreSQL::getSSOAuthInfo(const nlohmann::json& member, const std::string& redirectURL)
 {
 	Metrics::db_get_sso_info++;
 	// NONCE is just a random character string.  no semantic meaning
 	// state = HMAC SHA384 of Nonce based on shared sso key
-	// 
+	//
 	// need nonce timeout in database? make sure it's used within X time
 	// X is 5 minutes for now.  Make configurable later?
 	//
@@ -422,68 +424,79 @@ AuthInfo PostgreSQL::getSSOAuthInfo(const nlohmann::json &member, const std::str
 	std::string networkId = member["nwid"];
 	std::string memberId = member["id"];
 
-
-	char authenticationURL[4096] = {0};
+	char authenticationURL[4096] = { 0 };
 	AuthInfo info;
 	info.enabled = true;
 
-	//if (memberId == "a10dccea52" && networkId == "8056c2e21c24673d") {
+	// if (memberId == "a10dccea52" && networkId == "8056c2e21c24673d") {
 	//	fprintf(stderr, "invalid authinfo for grant's machine\n");
 	//	info.version=1;
 	//	return info;
-	//}
-	// fprintf(stderr, "PostgreSQL::updateMemberOnLoad: %s-%s\n", networkId.c_str(), memberId.c_str());
+	// }
+	//  fprintf(stderr, "PostgreSQL::updateMemberOnLoad: %s-%s\n", networkId.c_str(), memberId.c_str());
 	std::shared_ptr<PostgresConnection> c;
 	try {
 		c = _pool->borrow();
 		pqxx::work w(*c->c);
 
-		char nonceBytes[16] = {0};
+		char nonceBytes[16] = { 0 };
 		std::string nonce = "";
 
 		// check if the member exists first.
 		pqxx::row count = w.exec_params1("SELECT count(id) FROM ztc_member WHERE id = $1 AND network_id = $2 AND deleted = false", memberId, networkId);
 		if (count[0].as<int>() == 1) {
 			// get active nonce, if exists.
-			pqxx::result r = w.exec_params("SELECT nonce FROM ztc_sso_expiry "
+			pqxx::result r = w.exec_params(
+				"SELECT nonce FROM ztc_sso_expiry "
 				"WHERE network_id = $1 AND member_id = $2 "
 				"AND ((NOW() AT TIME ZONE 'UTC') <= authentication_expiry_time) AND ((NOW() AT TIME ZONE 'UTC') <= nonce_expiration)",
-				networkId, memberId);
+				networkId,
+				memberId);
 
 			if (r.size() == 0) {
 				// no active nonce.
 				// find an unused nonce, if one exists.
-				pqxx::result r = w.exec_params("SELECT nonce FROM ztc_sso_expiry "
+				pqxx::result r = w.exec_params(
+					"SELECT nonce FROM ztc_sso_expiry "
 					"WHERE network_id = $1 AND member_id = $2 "
 					"AND authentication_expiry_time IS NULL AND ((NOW() AT TIME ZONE 'UTC') <= nonce_expiration)",
-					networkId, memberId);
+					networkId,
+					memberId);
 
 				if (r.size() == 1) {
 					// we have an existing nonce.  Use it
 					nonce = r.at(0)[0].as<std::string>();
 					Utils::unhex(nonce.c_str(), nonceBytes, sizeof(nonceBytes));
-				} else if (r.empty()) {
+				}
+				else if (r.empty()) {
 					// create a nonce
 					Utils::getSecureRandom(nonceBytes, 16);
-					char nonceBuf[64] = {0};
+					char nonceBuf[64] = { 0 };
 					Utils::hex(nonceBytes, sizeof(nonceBytes), nonceBuf);
 					nonce = std::string(nonceBuf);
 
-					pqxx::result ir = w.exec_params0("INSERT INTO ztc_sso_expiry "
+					pqxx::result ir = w.exec_params0(
+						"INSERT INTO ztc_sso_expiry "
 						"(nonce, nonce_expiration, network_id, member_id) VALUES "
 						"($1, TO_TIMESTAMP($2::double precision/1000), $3, $4)",
-						nonce, OSUtils::now() + 300000, networkId, memberId);
+						nonce,
+						OSUtils::now() + 300000,
+						networkId,
+						memberId);
 
 					w.commit();
-				}  else {
+				}
+				else {
 					// > 1 ?!?  Thats an error!
 					fprintf(stderr, "> 1 unused nonce!\n");
 					exit(6);
 				}
-			} else if (r.size() == 1) {
+			}
+			else if (r.size() == 1) {
 				nonce = r.at(0)[0].as<std::string>();
 				Utils::unhex(nonce.c_str(), nonceBytes, sizeof(nonceBytes));
-			} else {
+			}
+			else {
 				// more than 1 nonce in use?  Uhhh...
 				fprintf(stderr, "> 1 nonce in use for network member?!?\n");
 				exit(7);
@@ -494,12 +507,13 @@ AuthInfo PostgreSQL::getSSOAuthInfo(const nlohmann::json &member, const std::str
 				"FROM ztc_network AS n "
 				"INNER JOIN ztc_org o "
 				"  ON o.owner_id = n.owner_id "
-			    "LEFT OUTER JOIN ztc_network_oidc_config noc "
+				"LEFT OUTER JOIN ztc_network_oidc_config noc "
 				"  ON noc.network_id = n.id "
 				"LEFT OUTER JOIN ztc_oidc_config oc "
 				"  ON noc.client_id = oc.client_id AND oc.org_id = o.org_id "
-				"WHERE n.id = $1 AND n.sso_enabled = true", networkId);
-		
+				"WHERE n.id = $1 AND n.sso_enabled = true",
+				networkId);
+
 			std::string client_id = "";
 			std::string authorization_endpoint = "";
 			std::string issuer = "";
@@ -507,30 +521,33 @@ AuthInfo PostgreSQL::getSSOAuthInfo(const nlohmann::json &member, const std::str
 			uint64_t sso_version = 0;
 
 			if (r.size() == 1) {
-				client_id = r.at(0)[0].as<std::optional<std::string>>().value_or("");
-				authorization_endpoint = r.at(0)[1].as<std::optional<std::string>>().value_or("");
-				issuer = r.at(0)[2].as<std::optional<std::string>>().value_or("");
-				provider = r.at(0)[3].as<std::optional<std::string>>().value_or("");
-				sso_version = r.at(0)[4].as<std::optional<uint64_t>>().value_or(1);
-			} else if (r.size() > 1) {
+				client_id = r.at(0)[0].as<std::optional<std::string> >().value_or("");
+				authorization_endpoint = r.at(0)[1].as<std::optional<std::string> >().value_or("");
+				issuer = r.at(0)[2].as<std::optional<std::string> >().value_or("");
+				provider = r.at(0)[3].as<std::optional<std::string> >().value_or("");
+				sso_version = r.at(0)[4].as<std::optional<uint64_t> >().value_or(1);
+			}
+			else if (r.size() > 1) {
 				fprintf(stderr, "ERROR: More than one auth endpoint for an organization?!?!? NetworkID: %s\n", networkId.c_str());
-			} else {
+			}
+			else {
 				fprintf(stderr, "No client or auth endpoint?!?\n");
 			}
-		
+
 			info.version = sso_version;
-			
+
 			// no catch all else because we don't actually care if no records exist here. just continue as normal.
-			if ((!client_id.empty())&&(!authorization_endpoint.empty())) {
-				
+			if ((! client_id.empty()) && (! authorization_endpoint.empty())) {
 				uint8_t state[48];
 				HMACSHA384(_ssoPsk, nonceBytes, sizeof(nonceBytes), state);
 				char state_hex[256];
 				Utils::hex(state, 48, state_hex);
-				
+
 				if (info.version == 0) {
-					char url[2048] = {0};
-					OSUtils::ztsnprintf(url, sizeof(authenticationURL),
+					char url[2048] = { 0 };
+					OSUtils::ztsnprintf(
+						url,
+						sizeof(authenticationURL),
 						"%s?response_type=id_token&response_mode=form_post&scope=openid+email+profile&redirect_uri=%s&nonce=%s&state=%s&client_id=%s",
 						authorization_endpoint.c_str(),
 						url_encode(redirectURL).c_str(),
@@ -538,12 +555,13 @@ AuthInfo PostgreSQL::getSSOAuthInfo(const nlohmann::json &member, const std::str
 						state_hex,
 						client_id.c_str());
 					info.authenticationURL = std::string(url);
-				} else if (info.version == 1) {
+				}
+				else if (info.version == 1) {
 					info.ssoClientID = client_id;
 					info.issuerURL = issuer;
 					info.ssoProvider = provider;
 					info.ssoNonce = nonce;
-					info.ssoState = std::string(state_hex) + "_" +networkId;
+					info.ssoState = std::string(state_hex) + "_" + networkId;
 					info.centralAuthURL = redirectURL;
 #ifdef ZT_DEBUG
 					fprintf(
@@ -557,24 +575,26 @@ AuthInfo PostgreSQL::getSSOAuthInfo(const nlohmann::json &member, const std::str
 						provider.c_str());
 #endif
 				}
-			}  else {
+			}
+			else {
 				fprintf(stderr, "client_id: %s\nauthorization_endpoint: %s\n", client_id.c_str(), authorization_endpoint.c_str());
 			}
 		}
 
 		_pool->unborrow(c);
-	} catch (std::exception &e) {
+	}
+	catch (std::exception& e) {
 		fprintf(stderr, "ERROR: Error updating member on load for network %s: %s\n", networkId.c_str(), e.what());
 	}
 
-	return info; //std::string(authenticationURL);
+	return info;   // std::string(authenticationURL);
 }
 
 void PostgreSQL::initializeNetworks()
 {
 	try {
 		std::string setKey = "networks:{" + _myAddressStr + "}";
-		
+
 		fprintf(stderr, "Initializing Networks...\n");
 
 		if (_redisMemberStatus) {
@@ -582,18 +602,21 @@ void PostgreSQL::initializeNetworks()
 			try {
 				if (_rc->clusterMode) {
 					_cluster->del(setKey);
-				} else {
+				}
+				else {
 					_redis->del(setKey);
 				}
-			} catch (sw::redis::Error &e) {
+			}
+			catch (sw::redis::Error& e) {
 				// ignore. if this key doesn't exist, there's no reason to delete it
 			}
 		}
 
 		std::unordered_set<std::string> networkSet;
 
-		char qbuf[2048] = {0};
-		sprintf(qbuf,
+		char qbuf[2048] = { 0 };
+		sprintf(
+			qbuf,
 			"SELECT n.id, (EXTRACT(EPOCH FROM n.creation_time AT TIME ZONE 'UTC')*1000)::bigint as creation_time, n.capabilities, "
 			"n.enable_broadcast, (EXTRACT(EPOCH FROM n.last_modified AT TIME ZONE 'UTC')*1000)::bigint AS last_modified, n.mtu, n.multicast_limit, n.name, n.private, n.remote_trace_level, "
 			"n.remote_trace_target, n.revision, n.rules, n.tags, n.v4_assign_mode, n.v6_assign_mode, n.sso_enabled, (CASE WHEN n.sso_enabled THEN noc.client_id ELSE NULL END) as client_id, "
@@ -610,40 +633,65 @@ void PostgreSQL::initializeNetworks()
 			"	ON noc.client_id = oc.client_id AND oc.org_id = o.org_id "
 			"LEFT OUTER JOIN ztc_network_dns d "
 			"	ON d.network_id = n.id "
-			"WHERE deleted = false AND controller_id = '%s'", _myAddressStr.c_str());
+			"WHERE deleted = false AND controller_id = '%s'",
+			_myAddressStr.c_str());
 		auto c = _pool->borrow();
 		auto c2 = _pool->borrow();
-		pqxx::work w{*c->c};
+		pqxx::work w { *c->c };
 
 		fprintf(stderr, "Load networks from psql...\n");
 		auto stream = pqxx::stream_from::query(w, qbuf);
 
 		std::tuple<
-		      std::string 					// network ID
-			, std::optional<int64_t> 		// creationTime
-			, std::optional<std::string>	// capabilities
-			, std::optional<bool>			// enableBroadcast
-			, std::optional<uint64_t>		// lastModified
-			, std::optional<int>			// mtu
-			, std::optional<int>			// multicastLimit
-			, std::optional<std::string>	// name
-			, bool							// private
-			, std::optional<int>			// remoteTraceLevel
-			, std::optional<std::string>	// remoteTraceTarget
-			, std::optional<uint64_t>		// revision
-			, std::optional<std::string>	// rules
-			, std::optional<std::string>	// tags
-			, std::optional<std::string>	// v4AssignMode
-			, std::optional<std::string>	// v6AssignMode
-			, std::optional<bool>			// ssoEnabled
-			, std::optional<std::string>	// clientId
-			, std::optional<std::string>	// authorizationEndpoint
-			, std::optional<std::string>    // ssoProvider
-			, std::optional<std::string>	// domain
-			, std::optional<std::string>	// servers
-			, std::string					// assignmentPoolString
-			, std::string					// routeString
-		> row;
+			std::string	  // network ID
+			,
+			std::optional<int64_t>	 // creationTime
+			,
+			std::optional<std::string>	 // capabilities
+			,
+			std::optional<bool>	  // enableBroadcast
+			,
+			std::optional<uint64_t>	  // lastModified
+			,
+			std::optional<int>	 // mtu
+			,
+			std::optional<int>	 // multicastLimit
+			,
+			std::optional<std::string>	 // name
+			,
+			bool   // private
+			,
+			std::optional<int>	 // remoteTraceLevel
+			,
+			std::optional<std::string>	 // remoteTraceTarget
+			,
+			std::optional<uint64_t>	  // revision
+			,
+			std::optional<std::string>	 // rules
+			,
+			std::optional<std::string>	 // tags
+			,
+			std::optional<std::string>	 // v4AssignMode
+			,
+			std::optional<std::string>	 // v6AssignMode
+			,
+			std::optional<bool>	  // ssoEnabled
+			,
+			std::optional<std::string>	 // clientId
+			,
+			std::optional<std::string>	 // authorizationEndpoint
+			,
+			std::optional<std::string>	 // ssoProvider
+			,
+			std::optional<std::string>	 // domain
+			,
+			std::optional<std::string>	 // servers
+			,
+			std::string	  // assignmentPoolString
+			,
+			std::string	  // routeString
+			>
+			row;
 
 		uint64_t count = 0;
 		auto tmp = std::chrono::high_resolution_clock::now();
@@ -680,28 +728,28 @@ void PostgreSQL::initializeNetworks()
 			std::optional<std::string> dnsServers = std::get<21>(row);
 			std::string assignmentPoolString = std::get<22>(row);
 			std::string routesString = std::get<23>(row);
-			
-		 	config["id"] = nwid;
-		 	config["nwid"] = nwid;
+
+			config["id"] = nwid;
+			config["nwid"] = nwid;
 			config["creationTime"] = creationTime.value_or(0);
 			config["capabilities"] = json::parse(capabilities.value_or("[]"));
 			config["enableBroadcast"] = enableBroadcast.value_or(false);
 			config["lastModified"] = lastModified.value_or(0);
 			config["mtu"] = mtu.value_or(2800);
 			config["multicastLimit"] = multicastLimit.value_or(64);
-		 	config["name"] = name.value_or(""); 
-		 	config["private"] = isPrivate;
-	 		config["remoteTraceLevel"] = remoteTraceLevel.value_or(0);
+			config["name"] = name.value_or("");
+			config["private"] = isPrivate;
+			config["remoteTraceLevel"] = remoteTraceLevel.value_or(0);
 			config["remoteTraceTarget"] = remoteTraceTarget.value_or("");
 			config["revision"] = revision.value_or(0);
-		 	config["rules"] = json::parse(rules.value_or("[]"));
-		 	config["tags"] = json::parse(tags.value_or("[]"));
-		 	config["v4AssignMode"] = json::parse(v4AssignMode.value_or("{}"));
-		 	config["v6AssignMode"] = json::parse(v6AssignMode.value_or("{}"));
-		 	config["ssoEnabled"] = ssoEnabled.value_or(false);
-		 	config["objtype"] = "network";
-		 	config["ipAssignmentPools"] = json::array();
-		 	config["routes"] = json::array();
+			config["rules"] = json::parse(rules.value_or("[]"));
+			config["tags"] = json::parse(tags.value_or("[]"));
+			config["v4AssignMode"] = json::parse(v4AssignMode.value_or("{}"));
+			config["v6AssignMode"] = json::parse(v6AssignMode.value_or("{}"));
+			config["ssoEnabled"] = ssoEnabled.value_or(false);
+			config["objtype"] = "network";
+			config["ipAssignmentPools"] = json::array();
+			config["routes"] = json::array();
 			config["clientId"] = clientId.value_or("");
 			config["authorizationEndpoint"] = authorizationEndpoint.value_or("");
 			config["provider"] = ssoProvider.value_or("");
@@ -712,10 +760,10 @@ void PostgreSQL::initializeNetworks()
 				std::string serverList = dnsServers.value();
 				json obj;
 				auto servers = json::array();
-				if (serverList.rfind("{",0) != std::string::npos) {
-					serverList = serverList.substr(1, serverList.size()-2);
+				if (serverList.rfind("{", 0) != std::string::npos) {
+					serverList = serverList.substr(1, serverList.size() - 2);
 					std::stringstream ss(serverList);
-					while(ss.good()) {
+					while (ss.good()) {
 						std::string server;
 						std::getline(ss, server, ',');
 						servers.push_back(server);
@@ -726,9 +774,9 @@ void PostgreSQL::initializeNetworks()
 				config["dns"] = obj;
 			}
 
-			config["ipAssignmentPools"] = json::array();	
+			config["ipAssignmentPools"] = json::array();
 			if (assignmentPoolString != "{}") {
-				std::string tmp = assignmentPoolString.substr(1, assignmentPoolString.size()-2);
+				std::string tmp = assignmentPoolString.substr(1, assignmentPoolString.size() - 2);
 				std::vector<std::string> assignmentPools = split(tmp, ',');
 				for (auto it = assignmentPools.begin(); it != assignmentPools.end(); ++it) {
 					std::vector<std::string> r = split(*it, '|');
@@ -741,32 +789,33 @@ void PostgreSQL::initializeNetworks()
 
 			config["routes"] = json::array();
 			if (routesString != "{}") {
-				std::string tmp = routesString.substr(1, routesString.size()-2);
+				std::string tmp = routesString.substr(1, routesString.size() - 2);
 				std::vector<std::string> routes = split(tmp, ',');
 				for (auto it = routes.begin(); it != routes.end(); ++it) {
 					std::vector<std::string> r = split(*it, '|');
 					json route;
 					route["target"] = r[0];
-					route["via"] = ((route["via"] == "NULL")? nullptr : r[1]);
+					route["via"] = ((route["via"] == "NULL") ? nullptr : r[1]);
 					config["routes"].push_back(route);
 				}
 			}
 
 			Metrics::network_count++;
 
-		 	_networkChanged(empty, config, false);
+			_networkChanged(empty, config, false);
 
 			auto end = std::chrono::high_resolution_clock::now();
-			auto dur = std::chrono::duration_cast<std::chrono::microseconds>(end - start);;
+			auto dur = std::chrono::duration_cast<std::chrono::microseconds>(end - start);
+			;
 			total += dur.count();
 			++count;
 			if (count > 0 && count % 10000 == 0) {
-				fprintf(stderr, "Averaging %llu us per network\n", (total/count));
+				fprintf(stderr, "Averaging %llu us per network\n", (total / count));
 			}
 		}
 
 		if (count > 0) {
-			fprintf(stderr, "Took %llu us per network to load\n", (total/count));
+			fprintf(stderr, "Took %llu us per network to load\n", (total / count));
 		}
 		stream.complete();
 
@@ -775,7 +824,7 @@ void PostgreSQL::initializeNetworks()
 		_pool->unborrow(c);
 		fprintf(stderr, "done.\n");
 
-		if (!networkSet.empty()) {
+		if (! networkSet.empty()) {
 			if (_redisMemberStatus) {
 				fprintf(stderr, "adding networks to redis...\n");
 				if (_rc->clusterMode) {
@@ -789,7 +838,8 @@ void PostgreSQL::initializeNetworks()
 						}
 					}
 					tx.exec();
-				} else {
+				}
+				else {
 					auto tx = _redis->transaction(true, false);
 					uint64_t count = 0;
 					for (std::string nwid : networkSet) {
@@ -807,16 +857,18 @@ void PostgreSQL::initializeNetworks()
 
 		if (++this->_ready == 2) {
 			if (_waitNoticePrinted) {
-				fprintf(stderr,"[%s] NOTICE: %.10llx controller PostgreSQL data download complete." ZT_EOL_S,_timestr(),(unsigned long long)_myAddress.toInt());
+				fprintf(stderr, "[%s] NOTICE: %.10llx controller PostgreSQL data download complete." ZT_EOL_S, _timestr(), (unsigned long long)_myAddress.toInt());
 			}
 			_readyLock.unlock();
 		}
 		fprintf(stderr, "network init done.\n");
-	} catch (sw::redis::Error &e) {
+	}
+	catch (sw::redis::Error& e) {
 		fprintf(stderr, "ERROR: Error initializing networks in Redis: %s\n", e.what());
 		std::this_thread::sleep_for(std::chrono::milliseconds(5000));
 		exit(-1);
-	} catch (std::exception &e) {
+	}
+	catch (std::exception& e) {
 		fprintf(stderr, "ERROR: Error initializing networks: %s\n", e.what());
 		std::this_thread::sleep_for(std::chrono::milliseconds(5000));
 		exit(-1);
@@ -837,16 +889,16 @@ void PostgreSQL::initializeMembers()
 			fprintf(stderr, "Initialize Redis for members...\n");
 			std::unique_lock<std::shared_mutex> l(_networks_l);
 			std::unordered_set<std::string> deletes;
-			for ( auto it : _networks) {
+			for (auto it : _networks) {
 				uint64_t nwid_i = it.first;
-				char nwidTmp[64] = {0};
+				char nwidTmp[64] = { 0 };
 				OSUtils::ztsnprintf(nwidTmp, sizeof(nwidTmp), "%.16llx", nwid_i);
 				std::string nwid(nwidTmp);
 				std::string key = setKeyBase + nwid;
 				deletes.insert(key);
 			}
 
-			if (!deletes.empty()) {
+			if (! deletes.empty()) {
 				try {
 					if (_rc->clusterMode) {
 						auto tx = _cluster->transaction(_myAddressStr, true, false);
@@ -854,73 +906,98 @@ void PostgreSQL::initializeMembers()
 							tx.del(k);
 						}
 						tx.exec();
-					} else {
+					}
+					else {
 						auto tx = _redis->transaction(true, false);
 						for (std::string k : deletes) {
 							tx.del(k);
 						}
 						tx.exec();
 					}
-				} catch (sw::redis::Error &e) {
+				}
+				catch (sw::redis::Error& e) {
 					// ignore
 				}
 			}
 		}
 
 		char qbuf[2048];
-		sprintf(qbuf,
+		sprintf(
+			qbuf,
 			"SELECT m.id, m.network_id, m.active_bridge, m.authorized, m.capabilities, "
-				"(EXTRACT(EPOCH FROM m.creation_time AT TIME ZONE 'UTC')*1000)::bigint, m.identity, "
-				"(EXTRACT(EPOCH FROM m.last_authorized_time AT TIME ZONE 'UTC')*1000)::bigint, "
-				"(EXTRACT(EPOCH FROM m.last_deauthorized_time AT TIME ZONE 'UTC')*1000)::bigint, "
-				"m.remote_trace_level, m.remote_trace_target, m.tags, m.v_major, m.v_minor, m.v_rev, m.v_proto, "
-				"m.no_auto_assign_ips, m.revision, m.sso_exempt, "
-				"(CASE WHEN n.sso_enabled = TRUE AND m.sso_exempt = FALSE THEN "
-				" ( "
-				"	SELECT (EXTRACT(EPOCH FROM e.authentication_expiry_time)*1000)::bigint "
-				"	FROM ztc_sso_expiry e "
-				"	INNER JOIN ztc_network n1 "
-				"	ON n1.id = e.network_id  AND n1.deleted = TRUE "
-				"	WHERE e.network_id = m.network_id AND e.member_id = m.id AND n.sso_enabled = TRUE AND e.authentication_expiry_time IS NOT NULL "
-				"	ORDER BY e.authentication_expiry_time DESC LIMIT 1 "
-				" ) "
-				" ELSE NULL "
-				" END) AS authentication_expiry_time, "
-				"ARRAY(SELECT DISTINCT address FROM ztc_member_ip_assignment WHERE member_id = m.id AND network_id = m.network_id) AS assigned_addresses "
+			"(EXTRACT(EPOCH FROM m.creation_time AT TIME ZONE 'UTC')*1000)::bigint, m.identity, "
+			"(EXTRACT(EPOCH FROM m.last_authorized_time AT TIME ZONE 'UTC')*1000)::bigint, "
+			"(EXTRACT(EPOCH FROM m.last_deauthorized_time AT TIME ZONE 'UTC')*1000)::bigint, "
+			"m.remote_trace_level, m.remote_trace_target, m.tags, m.v_major, m.v_minor, m.v_rev, m.v_proto, "
+			"m.no_auto_assign_ips, m.revision, m.sso_exempt, "
+			"(CASE WHEN n.sso_enabled = TRUE AND m.sso_exempt = FALSE THEN "
+			" ( "
+			"	SELECT (EXTRACT(EPOCH FROM e.authentication_expiry_time)*1000)::bigint "
+			"	FROM ztc_sso_expiry e "
+			"	INNER JOIN ztc_network n1 "
+			"	ON n1.id = e.network_id  AND n1.deleted = TRUE "
+			"	WHERE e.network_id = m.network_id AND e.member_id = m.id AND n.sso_enabled = TRUE AND e.authentication_expiry_time IS NOT NULL "
+			"	ORDER BY e.authentication_expiry_time DESC LIMIT 1 "
+			" ) "
+			" ELSE NULL "
+			" END) AS authentication_expiry_time, "
+			"ARRAY(SELECT DISTINCT address FROM ztc_member_ip_assignment WHERE member_id = m.id AND network_id = m.network_id) AS assigned_addresses "
 			"FROM ztc_member m "
 			"INNER JOIN ztc_network n "
 			"	ON n.id = m.network_id "
-			"WHERE n.controller_id = '%s' AND n.deleted = FALSE AND m.deleted = FALSE", _myAddressStr.c_str());
+			"WHERE n.controller_id = '%s' AND n.deleted = FALSE AND m.deleted = FALSE",
+			_myAddressStr.c_str());
 		auto c = _pool->borrow();
 		auto c2 = _pool->borrow();
-		pqxx::work w{*c->c};
+		pqxx::work w { *c->c };
 
 		fprintf(stderr, "Load members from psql...\n");
 		auto stream = pqxx::stream_from::query(w, qbuf);
 
 		std::tuple<
-			  std::string					// memberId
-			, std::string					// memberId
-			, std::optional<bool>			// activeBridge
-			, std::optional<bool>			// authorized
-			, std::optional<std::string>	// capabilities
-			, std::optional<uint64_t>		// creationTime
-			, std::optional<std::string>	// identity
-			, std::optional<uint64_t>		// lastAuthorizedTime
-			, std::optional<uint64_t>		// lastDeauthorizedTime
-			, std::optional<int>			// remoteTraceLevel
-			, std::optional<std::string>	// remoteTraceTarget
-			, std::optional<std::string>	// tags
-			, std::optional<int>			// vMajor
-			, std::optional<int>			// vMinor
-			, std::optional<int>			// vRev
-			, std::optional<int>			// vProto
-			, std::optional<bool>			// noAutoAssignIps
-			, std::optional<uint64_t>		// revision
-			, std::optional<bool>			// ssoExempt
-			, std::optional<uint64_t>		// authenticationExpiryTime
-			, std::string					// assignedAddresses
-		> row;
+			std::string	  // memberId
+			,
+			std::string	  // memberId
+			,
+			std::optional<bool>	  // activeBridge
+			,
+			std::optional<bool>	  // authorized
+			,
+			std::optional<std::string>	 // capabilities
+			,
+			std::optional<uint64_t>	  // creationTime
+			,
+			std::optional<std::string>	 // identity
+			,
+			std::optional<uint64_t>	  // lastAuthorizedTime
+			,
+			std::optional<uint64_t>	  // lastDeauthorizedTime
+			,
+			std::optional<int>	 // remoteTraceLevel
+			,
+			std::optional<std::string>	 // remoteTraceTarget
+			,
+			std::optional<std::string>	 // tags
+			,
+			std::optional<int>	 // vMajor
+			,
+			std::optional<int>	 // vMinor
+			,
+			std::optional<int>	 // vRev
+			,
+			std::optional<int>	 // vProto
+			,
+			std::optional<bool>	  // noAutoAssignIps
+			,
+			std::optional<uint64_t>	  // revision
+			,
+			std::optional<bool>	  // ssoExempt
+			,
+			std::optional<uint64_t>	  // authenticationExpiryTime
+			,
+			std::string	  // assignedAddresses
+			>
+			row;
 
 		uint64_t count = 0;
 		auto tmp = std::chrono::high_resolution_clock::now();
@@ -929,7 +1006,7 @@ void PostgreSQL::initializeMembers()
 			auto start = std::chrono::high_resolution_clock::now();
 			json empty;
 			json config;
-			
+
 			initMember(config);
 
 			memberId = std::get<0>(row);
@@ -954,7 +1031,7 @@ void PostgreSQL::initializeMembers()
 			std::optional<uint64_t> authenticationExpiryTime = std::get<19>(row);
 			std::string assignedAddresses = std::get<20>(row);
 
-			networkMembers.insert(std::pair<std::string, std::string>(setKeyBase+networkId, memberId));
+			networkMembers.insert(std::pair<std::string, std::string>(setKeyBase + networkId, memberId));
 
 			config["id"] = memberId;
 			config["address"] = memberId;
@@ -967,7 +1044,7 @@ void PostgreSQL::initializeMembers()
 			config["lastAuthorizedTime"] = lastAuthorizedTime.value_or(0);
 			config["lastDeauthorizedTime"] = lastDeauthorizedTime.value_or(0);
 			config["remoteTraceLevel"] = remoteTraceLevel.value_or(0);
-		 	config["remoteTraceTarget"] = remoteTraceTarget.value_or("");
+			config["remoteTraceTarget"] = remoteTraceTarget.value_or("");
 			config["tags"] = json::parse(tags.value_or("[]"));
 			config["vMajor"] = vMajor.value_or(-1);
 			config["vMinor"] = vMinor.value_or(-1);
@@ -981,7 +1058,7 @@ void PostgreSQL::initializeMembers()
 			config["ipAssignments"] = json::array();
 
 			if (assignedAddresses != "{}") {
-				std::string tmp = assignedAddresses.substr(1, assignedAddresses.size()-2);
+				std::string tmp = assignedAddresses.substr(1, assignedAddresses.size() - 2);
 				std::vector<std::string> addrs = split(tmp, ',');
 				for (auto it = addrs.begin(); it != addrs.end(); ++it) {
 					config["ipAssignments"].push_back(*it);
@@ -1000,11 +1077,11 @@ void PostgreSQL::initializeMembers()
 			total += dur.count();
 			++count;
 			if (count > 0 && count % 10000 == 0) {
-				fprintf(stderr, "Averaging %llu us per member\n", (total/count));
+				fprintf(stderr, "Averaging %llu us per member\n", (total / count));
 			}
 		}
 		if (count > 0) {
-			fprintf(stderr, "Took %llu us per member to load\n", (total/count));
+			fprintf(stderr, "Took %llu us per member to load\n", (total / count));
 		}
 
 		stream.complete();
@@ -1014,7 +1091,7 @@ void PostgreSQL::initializeMembers()
 		_pool->unborrow(c);
 		fprintf(stderr, "done.\n");
 
-		if (!networkMembers.empty()) {
+		if (! networkMembers.empty()) {
 			if (_redisMemberStatus) {
 				fprintf(stderr, "Load member data into redis...\n");
 				if (_rc->clusterMode) {
@@ -1028,7 +1105,8 @@ void PostgreSQL::initializeMembers()
 						}
 					}
 					tx.exec();
-				} else {
+				}
+				else {
 					auto tx = _redis->transaction(true, false);
 					uint64_t count = 0;
 					for (auto it : networkMembers) {
@@ -1048,14 +1126,16 @@ void PostgreSQL::initializeMembers()
 
 		if (++this->_ready == 2) {
 			if (_waitNoticePrinted) {
-				fprintf(stderr,"[%s] NOTICE: %.10llx controller PostgreSQL data download complete." ZT_EOL_S,_timestr(),(unsigned long long)_myAddress.toInt());
+				fprintf(stderr, "[%s] NOTICE: %.10llx controller PostgreSQL data download complete." ZT_EOL_S, _timestr(), (unsigned long long)_myAddress.toInt());
 			}
 			_readyLock.unlock();
 		}
-	} catch (sw::redis::Error &e) {
+	}
+	catch (sw::redis::Error& e) {
 		fprintf(stderr, "ERROR: Error initializing members (redis): %s\n", e.what());
 		exit(-1);
-	} catch (std::exception &e) {
+	}
+	catch (std::exception& e) {
 		fprintf(stderr, "ERROR: Error initializing member: %s-%s %s\n", networkId.c_str(), memberId.c_str(), e.what());
 		exit(-1);
 	}
@@ -1065,27 +1145,28 @@ void PostgreSQL::heartbeat()
 {
 	char publicId[1024];
 	char hostnameTmp[1024];
-	_myId.toString(false,publicId);
-	if (gethostname(hostnameTmp, sizeof(hostnameTmp))!= 0) {
+	_myId.toString(false, publicId);
+	if (gethostname(hostnameTmp, sizeof(hostnameTmp)) != 0) {
 		hostnameTmp[0] = (char)0;
-	} else {
+	}
+	else {
 		for (int i = 0; i < (int)sizeof(hostnameTmp); ++i) {
-			if ((hostnameTmp[i] == '.')||(hostnameTmp[i] == 0)) {
+			if ((hostnameTmp[i] == '.') || (hostnameTmp[i] == 0)) {
 				hostnameTmp[i] = (char)0;
 				break;
 			}
 		}
 	}
-	const char *controllerId = _myAddressStr.c_str();
-	const char *publicIdentity = publicId;
-	const char *hostname = hostnameTmp;
+	const char* controllerId = _myAddressStr.c_str();
+	const char* publicIdentity = publicId;
+	const char* hostname = hostnameTmp;
 
 	while (_run == 1) {
 		// fprintf(stderr, "%s: heartbeat\n", controllerId);
 		auto c = _pool->borrow();
 		int64_t ts = OSUtils::now();
 
-		if(c->c) {
+		if (c->c) {
 			std::string major = std::to_string(ZEROTIER_ONE_VERSION_MAJOR);
 			std::string minor = std::to_string(ZEROTIER_ONE_VERSION_MINOR);
 			std::string rev = std::to_string(ZEROTIER_ONE_VERSION_REVISION);
@@ -1094,25 +1175,27 @@ void PostgreSQL::heartbeat()
 			std::string host_port = std::to_string(_listenPort);
 			std::string use_redis = (_rc != NULL) ? "true" : "false";
 			std::string redis_mem_status = (_redisMemberStatus) ? "true" : "false";
-			
-			try {
-				pqxx::work w{*c->c};
 
-				pqxx::result res =
-					w.exec0("INSERT INTO ztc_controller (id, cluster_host, last_alive, public_identity, v_major, v_minor, v_rev, v_build, host_port, use_redis, redis_member_status) "
-							"VALUES ("+w.quote(controllerId)+", "+w.quote(hostname)+", TO_TIMESTAMP("+now+"::double precision/1000), "+
-							w.quote(publicIdentity)+", "+major+", "+minor+", "+rev+", "+build+", "+host_port+", "+use_redis+", "+redis_mem_status+") "
-							"ON CONFLICT (id) DO UPDATE SET cluster_host = EXCLUDED.cluster_host, last_alive = EXCLUDED.last_alive, "
-							"public_identity = EXCLUDED.public_identity, v_major = EXCLUDED.v_major, v_minor = EXCLUDED.v_minor, "
-							"v_rev = EXCLUDED.v_rev, v_build = EXCLUDED.v_rev, host_port = EXCLUDED.host_port, "
-							"use_redis = EXCLUDED.use_redis, redis_member_status = EXCLUDED.redis_member_status");
+			try {
+				pqxx::work w { *c->c };
+
+				pqxx::result res = w.exec0(
+					"INSERT INTO ztc_controller (id, cluster_host, last_alive, public_identity, v_major, v_minor, v_rev, v_build, host_port, use_redis, redis_member_status) "
+					"VALUES ("
+					+ w.quote(controllerId) + ", " + w.quote(hostname) + ", TO_TIMESTAMP(" + now + "::double precision/1000), " + w.quote(publicIdentity) + ", " + major + ", " + minor + ", " + rev + ", " + build + ", " + host_port + ", "
+					+ use_redis + ", " + redis_mem_status
+					+ ") "
+					  "ON CONFLICT (id) DO UPDATE SET cluster_host = EXCLUDED.cluster_host, last_alive = EXCLUDED.last_alive, "
+					  "public_identity = EXCLUDED.public_identity, v_major = EXCLUDED.v_major, v_minor = EXCLUDED.v_minor, "
+					  "v_rev = EXCLUDED.v_rev, v_build = EXCLUDED.v_rev, host_port = EXCLUDED.host_port, "
+					  "use_redis = EXCLUDED.use_redis, redis_member_status = EXCLUDED.redis_member_status");
 				w.commit();
-			} catch (std::exception &e) {
+			}
+			catch (std::exception& e) {
 				fprintf(stderr, "%s: Heartbeat update failed: %s\n", controllerId, e.what());
 				std::this_thread::sleep_for(std::chrono::milliseconds(1000));
 				continue;
 			}
-
 		}
 		_pool->unborrow(c);
 
@@ -1120,11 +1203,13 @@ void PostgreSQL::heartbeat()
 			if (_redisMemberStatus) {
 				if (_rc->clusterMode) {
 					_cluster->zadd("controllers", "controllerId", ts);
-				} else {
+				}
+				else {
 					_redis->zadd("controllers", "controllerId", ts);
 				}
 			}
-		} catch (sw::redis::Error &e) {
+		}
+		catch (sw::redis::Error& e) {
 			fprintf(stderr, "ERROR: Redis error in heartbeat thread: %s\n", e.what());
 		}
 
@@ -1137,7 +1222,8 @@ void PostgreSQL::membersDbWatcher()
 {
 	if (_rc) {
 		_membersWatcher_Redis();
-	} else {
+	}
+	else {
 		_membersWatcher_Postgres();
 	}
 
@@ -1148,7 +1234,8 @@ void PostgreSQL::membersDbWatcher()
 	fprintf(stderr, "Exited membersDbWatcher\n");
 }
 
-void PostgreSQL::_membersWatcher_Postgres() {
+void PostgreSQL::_membersWatcher_Postgres()
+{
 	auto c = _pool->borrow();
 
 	std::string stream = "member_" + _myAddressStr;
@@ -1156,15 +1243,16 @@ void PostgreSQL::_membersWatcher_Postgres() {
 	fprintf(stderr, "Listening to member stream: %s\n", stream.c_str());
 	MemberNotificationReceiver m(this, *c->c, stream);
 
-	while(_run == 1) {
+	while (_run == 1) {
 		c->c->await_notification(5, 0);
 	}
 
 	_pool->unborrow(c);
 }
 
-void PostgreSQL::_membersWatcher_Redis() {
-	char buf[11] = {0};
+void PostgreSQL::_membersWatcher_Redis()
+{
+	char buf[11] = { 0 };
 	std::string key = "member-stream:{" + std::string(_myAddress.toString(buf)) + "}";
 	std::string lastID = "0";
 	fprintf(stderr, "Listening to member stream: %s\n", key.c_str());
@@ -1174,42 +1262,47 @@ void PostgreSQL::_membersWatcher_Redis() {
 			std::unordered_map<std::string, ItemStream> result;
 			if (_rc->clusterMode) {
 				_cluster->xread(key, lastID, std::chrono::seconds(1), 0, std::inserter(result, result.end()));
-			} else {
+			}
+			else {
 				_redis->xread(key, lastID, std::chrono::seconds(1), 0, std::inserter(result, result.end()));
 			}
-			if (!result.empty()) {
+			if (! result.empty()) {
 				for (auto element : result) {
-	#ifdef REDIS_TRACE
+#ifdef REDIS_TRACE
 					fprintf(stdout, "Received notification from: %s\n", element.first.c_str());
-	#endif
+#endif
 					for (auto rec : element.second) {
 						std::string id = rec.first;
 						auto attrs = rec.second;
-	#ifdef REDIS_TRACE
+#ifdef REDIS_TRACE
 						fprintf(stdout, "Record ID: %s\n", id.c_str());
 						fprintf(stdout, "attrs len: %lu\n", attrs.size());
-	#endif
+#endif
 						for (auto a : attrs) {
-	#ifdef REDIS_TRACE
+#ifdef REDIS_TRACE
 							fprintf(stdout, "key: %s\nvalue: %s\n", a.first.c_str(), a.second.c_str());
-	#endif
+#endif
 							try {
 								tmp = json::parse(a.second);
-								json &ov = tmp["old_val"];
-								json &nv = tmp["new_val"];
+								json& ov = tmp["old_val"];
+								json& nv = tmp["new_val"];
 								json oldConfig, newConfig;
-								if (ov.is_object()) oldConfig = ov;
-								if (nv.is_object()) newConfig = nv;
-								if (oldConfig.is_object()||newConfig.is_object()) {
-									_memberChanged(oldConfig,newConfig,(this->_ready >= 2));
+								if (ov.is_object())
+									oldConfig = ov;
+								if (nv.is_object())
+									newConfig = nv;
+								if (oldConfig.is_object() || newConfig.is_object()) {
+									_memberChanged(oldConfig, newConfig, (this->_ready >= 2));
 								}
-							} catch (...) {
+							}
+							catch (...) {
 								fprintf(stderr, "json parse error in _membersWatcher_Redis: %s\n", a.second.c_str());
 							}
 						}
 						if (_rc->clusterMode) {
 							_cluster->xdel(key, id);
-						} else {
+						}
+						else {
 							_redis->xdel(key, id);
 						}
 						lastID = id;
@@ -1217,7 +1310,8 @@ void PostgreSQL::_membersWatcher_Redis() {
 					}
 				}
 			}
-		} catch (sw::redis::Error &e) {
+		}
+		catch (sw::redis::Error& e) {
 			fprintf(stderr, "Error in Redis members watcher: %s\n", e.what());
 		}
 	}
@@ -1228,7 +1322,8 @@ void PostgreSQL::networksDbWatcher()
 {
 	if (_rc) {
 		_networksWatcher_Redis();
-	} else {
+	}
+	else {
 		_networksWatcher_Postgres();
 	}
 
@@ -1239,22 +1334,24 @@ void PostgreSQL::networksDbWatcher()
 	fprintf(stderr, "Exited networksDbWatcher\n");
 }
 
-void PostgreSQL::_networksWatcher_Postgres() {
+void PostgreSQL::_networksWatcher_Postgres()
+{
 	std::string stream = "network_" + _myAddressStr;
 
 	fprintf(stderr, "Listening to member stream: %s\n", stream.c_str());
-	
+
 	auto c = _pool->borrow();
 
 	NetworkNotificationReceiver n(this, *c->c, stream);
 
-	while(_run == 1) {
-		c->c->await_notification(5,0);
+	while (_run == 1) {
+		c->c->await_notification(5, 0);
 	}
 }
 
-void PostgreSQL::_networksWatcher_Redis() {
-	char buf[11] = {0};
+void PostgreSQL::_networksWatcher_Redis()
+{
+	char buf[11] = { 0 };
 	std::string key = "network-stream:{" + std::string(_myAddress.toString(buf)) + "}";
 	std::string lastID = "0";
 	while (_run == 1) {
@@ -1263,11 +1360,12 @@ void PostgreSQL::_networksWatcher_Redis() {
 			std::unordered_map<std::string, ItemStream> result;
 			if (_rc->clusterMode) {
 				_cluster->xread(key, lastID, std::chrono::seconds(1), 0, std::inserter(result, result.end()));
-			} else {
+			}
+			else {
 				_redis->xread(key, lastID, std::chrono::seconds(1), 0, std::inserter(result, result.end()));
 			}
-			
-			if (!result.empty()) {
+
+			if (! result.empty()) {
 				for (auto element : result) {
 #ifdef REDIS_TRACE
 					fprintf(stdout, "Received notification from: %s\n", element.first.c_str());
@@ -1285,21 +1383,25 @@ void PostgreSQL::_networksWatcher_Redis() {
 #endif
 							try {
 								tmp = json::parse(a.second);
-								json &ov = tmp["old_val"];
-								json &nv = tmp["new_val"];
+								json& ov = tmp["old_val"];
+								json& nv = tmp["new_val"];
 								json oldConfig, newConfig;
-								if (ov.is_object()) oldConfig = ov;
-								if (nv.is_object()) newConfig = nv;
-								if (oldConfig.is_object()||newConfig.is_object()) {
-									_networkChanged(oldConfig,newConfig,(this->_ready >= 2));
+								if (ov.is_object())
+									oldConfig = ov;
+								if (nv.is_object())
+									newConfig = nv;
+								if (oldConfig.is_object() || newConfig.is_object()) {
+									_networkChanged(oldConfig, newConfig, (this->_ready >= 2));
 								}
-							} catch (std::exception &e) {
+							}
+							catch (std::exception& e) {
 								fprintf(stderr, "json parse error in networkWatcher_Redis: what: %s json: %s\n", e.what(), a.second.c_str());
 							}
 						}
 						if (_rc->clusterMode) {
 							_cluster->xdel(key, id);
-						} else {
+						}
+						else {
 							_redis->xdel(key, id);
 						}
 						lastID = id;
@@ -1307,7 +1409,8 @@ void PostgreSQL::_networksWatcher_Redis() {
 					Metrics::redis_net_notification++;
 				}
 			}
-		} catch (sw::redis::Error &e) {
+		}
+		catch (sw::redis::Error& e) {
 			fprintf(stderr, "Error in Redis networks watcher: %s\n", e.what());
 		}
 	}
@@ -1317,10 +1420,10 @@ void PostgreSQL::_networksWatcher_Redis() {
 void PostgreSQL::commitThread()
 {
 	fprintf(stderr, "%s: commitThread start\n", _myAddressStr.c_str());
-	std::pair<nlohmann::json,bool> qitem;
-	while(_commitQueue.get(qitem)&(_run == 1)) {
-		//fprintf(stderr, "commitThread tick\n");
-		if (!qitem.first.is_object()) {
+	std::pair<nlohmann::json, bool> qitem;
+	while (_commitQueue.get(qitem) & (_run == 1)) {
+		// fprintf(stderr, "commitThread tick\n");
+		if (! qitem.first.is_object()) {
 			fprintf(stderr, "not an object\n");
 			continue;
 		}
@@ -1328,19 +1431,20 @@ void PostgreSQL::commitThread()
 		std::shared_ptr<PostgresConnection> c;
 		try {
 			c = _pool->borrow();
-		} catch (std::exception &e) {
+		}
+		catch (std::exception& e) {
 			fprintf(stderr, "ERROR: %s\n", e.what());
 			continue;
 		}
 
-		if (!c) {
+		if (! c) {
 			fprintf(stderr, "Error getting database connection\n");
 			continue;
 		}
-		
+
 		Metrics::pgsql_commit_ticks++;
 		try {
-			nlohmann::json &config = (qitem.first);
+			nlohmann::json& config = (qitem.first);
 			const std::string objtype = config["objtype"];
 			if (objtype == "member") {
 				// fprintf(stderr, "%s: commitThread: member\n", _myAddressStr.c_str());
@@ -1351,12 +1455,12 @@ void PostgreSQL::commitThread()
 
 					memberId = config["id"];
 					networkId = config["nwid"];
-					
+
 					std::string target = "NULL";
-					if (!config["remoteTraceTarget"].is_null()) {
+					if (! config["remoteTraceTarget"].is_null()) {
 						target = config["remoteTraceTarget"];
 					}
-					
+
 					pqxx::row nwrow = w.exec_params1("SELECT COUNT(id) FROM ztc_network WHERE id = $1", networkId);
 					int nwcount = nwrow[0].as<int>();
 
@@ -1366,7 +1470,6 @@ void PostgreSQL::commitThread()
 						_pool->unborrow(c);
 						continue;
 					}
-
 
 					pqxx::row mrow = w.exec_params1("SELECT COUNT(id) FROM ztc_member WHERE id = $1 AND network_id = $2", memberId, networkId);
 					int membercount = mrow[0].as<int>();
@@ -1399,7 +1502,8 @@ void PostgreSQL::commitThread()
 							(int)config["vMinor"],
 							(int)config["vRev"],
 							(int)config["vProto"]);
-					} else {
+					}
+					else {
 						// existing member
 						pqxx::result res = w.exec_params0(
 							"UPDATE ztc_member "
@@ -1425,13 +1529,11 @@ void PostgreSQL::commitThread()
 							(int)config["vMajor"],
 							(int)config["vMinor"],
 							(int)config["vRev"],
-							(int)config["vProto"]
-						);
+							(int)config["vProto"]);
 					}
 
-					if (!isNewMember) {
-						pqxx::result res = w.exec_params0("DELETE FROM ztc_member_ip_assignment WHERE member_id = $1 AND network_id = $2",
-							memberId, networkId);
+					if (! isNewMember) {
+						pqxx::result res = w.exec_params0("DELETE FROM ztc_member_ip_assignment WHERE member_id = $1 AND network_id = $2", memberId, networkId);
 					}
 
 					std::vector<std::string> assignments;
@@ -1443,9 +1545,7 @@ void PostgreSQL::commitThread()
 							continue;
 						}
 
-						pqxx::result res = w.exec_params0(
-							"INSERT INTO ztc_member_ip_assignment (member_id, network_id, address) VALUES ($1, $2, $3) ON CONFLICT (network_id, member_id, address) DO NOTHING",
-							memberId, networkId, addr);
+						pqxx::result res = w.exec_params0("INSERT INTO ztc_member_ip_assignment (member_id, network_id, address) VALUES ($1, $2, $3) ON CONFLICT (network_id, member_id, address) DO NOTHING", memberId, networkId, addr);
 
 						assignments.push_back(addr);
 					}
@@ -1469,8 +1569,7 @@ void PostgreSQL::commitThread()
 							"   INNER JOIN ztc_network n ON n.owner_id = o.owner_id "
 							" WHERE "
 							"n.id = $1 ",
-							networkId
-						);
+							networkId);
 						int64_t hookCount = row[0].as<int64_t>();
 						if (hookCount > 0) {
 							notifyNewMember(networkId, memberId);
@@ -1488,20 +1587,23 @@ void PostgreSQL::commitThread()
 						get(nwidInt, nwOrig, memberidInt, memOrig);
 
 						_memberChanged(memOrig, memNew, qitem.second);
-					} else {
+					}
+					else {
 						fprintf(stderr, "%s: Can't notify of change.  Error parsing nwid or memberid: %llu-%llu\n", _myAddressStr.c_str(), (unsigned long long)nwidInt, (unsigned long long)memberidInt);
 					}
-				} catch (std::exception &e) {
+				}
+				catch (std::exception& e) {
 					fprintf(stderr, "%s ERROR: Error updating member %s-%s: %s\n", _myAddressStr.c_str(), networkId.c_str(), memberId.c_str(), e.what());
 				}
-			} else if (objtype == "network") {
+			}
+			else if (objtype == "network") {
 				try {
 					// fprintf(stderr, "%s: commitThread: network\n", _myAddressStr.c_str());
 					pqxx::work w(*c->c);
 
 					std::string id = config["id"];
 					std::string remoteTraceTarget = "";
-					if(!config["remoteTraceTarget"].is_null()) {
+					if (! config["remoteTraceTarget"].is_null()) {
 						remoteTraceTarget = config["remoteTraceTarget"];
 					}
 					std::string rulesSource = "";
@@ -1540,14 +1642,14 @@ void PostgreSQL::commitThread()
 						OSUtils::now(),
 						(int)config["mtu"],
 						(int)config["multicastLimit"],
-						OSUtils::jsonString(config["name"],""),
+						OSUtils::jsonString(config["name"], ""),
 						(bool)config["private"],
 						(int)config["remoteTraceLevel"],
 						remoteTraceTarget,
 						OSUtils::jsonDump(config["rules"], -1),
 						rulesSource,
 						OSUtils::jsonDump(config["tags"], -1),
-						OSUtils::jsonDump(config["v4AssignMode"],-1),
+						OSUtils::jsonDump(config["v4AssignMode"], -1),
 						OSUtils::jsonDump(config["v6AssignMode"], -1),
 						OSUtils::jsonBool(config["ssoEnabled"], false));
 
@@ -1561,7 +1663,10 @@ void PostgreSQL::commitThread()
 
 						res = w.exec_params0(
 							"INSERT INTO ztc_network_assignment_pool (network_id, ip_range_start, ip_range_end) "
-							"VALUES ($1, $2, $3)", id, start, end);
+							"VALUES ($1, $2, $3)",
+							id,
+							start,
+							end);
 					}
 
 					res = w.exec_params0("DELETE FROM ztc_network_route WHERE network_id = $1", id);
@@ -1573,7 +1678,7 @@ void PostgreSQL::commitThread()
 						std::vector<std::string> target;
 						std::istringstream f(t);
 						std::string s;
-						while(std::getline(f, s, '/')) {
+						while (std::getline(f, s, '/')) {
 							target.push_back(s);
 						}
 						if (target.empty() || target.size() != 2) {
@@ -1582,12 +1687,11 @@ void PostgreSQL::commitThread()
 						std::string targetAddr = target[0];
 						std::string targetBits = target[1];
 						std::string via = "NULL";
-						if (!(*i)["via"].is_null()) {
+						if (! (*i)["via"].is_null()) {
 							via = (*i)["via"];
 						}
 
-						res = w.exec_params0("INSERT INTO ztc_network_route (network_id, address, bits, via) VALUES ($1, $2, $3, $4)",
-							id, targetAddr, targetBits, (via == "NULL" ? NULL : via.c_str()));
+						res = w.exec_params0("INSERT INTO ztc_network_route (network_id, address, bits, via) VALUES ($1, $2, $3, $4)", id, targetAddr, targetBits, (via == "NULL" ? NULL : via.c_str()));
 					}
 					if (err) {
 						fprintf(stderr, "%s: route add error\n", _myAddressStr.c_str());
@@ -1602,7 +1706,7 @@ void PostgreSQL::commitThread()
 					servers << "{";
 					for (auto j = dns["servers"].begin(); j < dns["servers"].end(); ++j) {
 						servers << *j;
-						if ( (j+1) != dns["servers"].end()) {
+						if ((j + 1) != dns["servers"].end()) {
 							servers << ",";
 						}
 					}
@@ -1610,8 +1714,7 @@ void PostgreSQL::commitThread()
 
 					std::string s = servers.str();
 
-					res = w.exec_params0("INSERT INTO ztc_network_dns (network_id, domain, servers) VALUES ($1, $2, $3) ON CONFLICT (network_id) DO UPDATE SET domain = EXCLUDED.domain, servers = EXCLUDED.servers",
-						id, domain, s);
+					res = w.exec_params0("INSERT INTO ztc_network_dns (network_id, domain, servers) VALUES ($1, $2, $3) ON CONFLICT (network_id) DO UPDATE SET domain = EXCLUDED.domain, servers = EXCLUDED.servers", id, domain, s);
 
 					w.commit();
 
@@ -1623,10 +1726,12 @@ void PostgreSQL::commitThread()
 						get(nwidInt, nwOrig);
 
 						_networkChanged(nwOrig, nwNew, qitem.second);
-					} else {
+					}
+					else {
 						fprintf(stderr, "%s: Can't notify network changed: %llu\n", _myAddressStr.c_str(), (unsigned long long)nwidInt);
 					}
-				} catch (std::exception &e) {
+				}
+				catch (std::exception& e) {
 					fprintf(stderr, "%s ERROR: Error updating network: %s\n", _myAddressStr.c_str(), e.what());
 				}
 				if (_redisMemberStatus) {
@@ -1636,25 +1741,28 @@ void PostgreSQL::commitThread()
 						std::string key = "networks:{" + controllerId + "}";
 						if (_rc->clusterMode) {
 							_cluster->sadd(key, id);
-						} else {
+						}
+						else {
 							_redis->sadd(key, id);
 						}
-					} catch (sw::redis::Error &e) {
+					}
+					catch (sw::redis::Error& e) {
 						fprintf(stderr, "ERROR: Error adding network to Redis: %s\n", e.what());
 					}
 				}
-			} else if (objtype == "_delete_network") {
+			}
+			else if (objtype == "_delete_network") {
 				// fprintf(stderr, "%s: commitThread: delete network\n", _myAddressStr.c_str());
 				try {
 					pqxx::work w(*c->c);
 
 					std::string networkId = config["nwid"];
 
-					pqxx::result res = w.exec_params0("UPDATE ztc_network SET deleted = true WHERE id = $1",
-						networkId);
+					pqxx::result res = w.exec_params0("UPDATE ztc_network SET deleted = true WHERE id = $1", networkId);
 
 					w.commit();
-				} catch (std::exception &e) {
+				}
+				catch (std::exception& e) {
 					fprintf(stderr, "%s ERROR: Error deleting network: %s\n", _myAddressStr.c_str(), e.what());
 				}
 				if (_redisMemberStatus) {
@@ -1664,17 +1772,19 @@ void PostgreSQL::commitThread()
 						std::string key = "networks:{" + controllerId + "}";
 						if (_rc->clusterMode) {
 							_cluster->srem(key, id);
-							_cluster->del("network-nodes-online:{"+controllerId+"}:"+id);
-						} else {
-							_redis->srem(key, id);
-							_redis->del("network-nodes-online:{"+controllerId+"}:"+id);
+							_cluster->del("network-nodes-online:{" + controllerId + "}:" + id);
 						}
-					} catch (sw::redis::Error &e) {
+						else {
+							_redis->srem(key, id);
+							_redis->del("network-nodes-online:{" + controllerId + "}:" + id);
+						}
+					}
+					catch (sw::redis::Error& e) {
 						fprintf(stderr, "ERROR: Error adding network to Redis: %s\n", e.what());
 					}
 				}
-
-			} else if (objtype == "_delete_member") {
+			}
+			else if (objtype == "_delete_member") {
 				// fprintf(stderr, "%s commitThread: delete member\n", _myAddressStr.c_str());
 				try {
 					pqxx::work w(*c->c);
@@ -1682,12 +1792,11 @@ void PostgreSQL::commitThread()
 					std::string memberId = config["id"];
 					std::string networkId = config["nwid"];
 
-					pqxx::result res = w.exec_params0(
-						"UPDATE ztc_member SET hidden = true, deleted = true WHERE id = $1 AND network_id = $2",
-						memberId, networkId);
+					pqxx::result res = w.exec_params0("UPDATE ztc_member SET hidden = true, deleted = true WHERE id = $1 AND network_id = $2", memberId, networkId);
 
 					w.commit();
-				} catch (std::exception &e) {
+				}
+				catch (std::exception& e) {
 					fprintf(stderr, "%s ERROR: Error deleting member: %s\n", _myAddressStr.c_str(), e.what());
 				}
 				if (_redisMemberStatus) {
@@ -1698,19 +1807,23 @@ void PostgreSQL::commitThread()
 						std::string key = "network-nodes-all:{" + controllerId + "}:" + networkId;
 						if (_rc->clusterMode) {
 							_cluster->srem(key, memberId);
-							_cluster->del("member:{"+controllerId+"}:"+networkId+":"+memberId);
-						} else {
-							_redis->srem(key, memberId);
-							_redis->del("member:{"+controllerId+"}:"+networkId+":"+memberId);
+							_cluster->del("member:{" + controllerId + "}:" + networkId + ":" + memberId);
 						}
-					} catch (sw::redis::Error &e) {
+						else {
+							_redis->srem(key, memberId);
+							_redis->del("member:{" + controllerId + "}:" + networkId + ":" + memberId);
+						}
+					}
+					catch (sw::redis::Error& e) {
 						fprintf(stderr, "ERROR: Error deleting member from Redis: %s\n", e.what());
 					}
 				}
-			} else {
+			}
+			else {
 				fprintf(stderr, "%s ERROR: unknown objtype\n", _myAddressStr.c_str());
 			}
-		} catch (std::exception &e) {
+		}
+		catch (std::exception& e) {
 			fprintf(stderr, "%s ERROR: Error getting objtype: %s\n", _myAddressStr.c_str(), e.what());
 		}
 		_pool->unborrow(c);
@@ -1720,20 +1833,19 @@ void PostgreSQL::commitThread()
 	fprintf(stderr, "%s commitThread finished\n", _myAddressStr.c_str());
 }
 
-void PostgreSQL::notifyNewMember(const std::string &networkID, const std::string &memberID) {
-	smeeclient::smee_client_notify_network_joined(
-		_smee,
-		networkID.c_str(),
-		memberID.c_str());
+void PostgreSQL::notifyNewMember(const std::string& networkID, const std::string& memberID)
+{
+	smeeclient::smee_client_notify_network_joined(_smee, networkID.c_str(), memberID.c_str());
 }
 
 void PostgreSQL::onlineNotificationThread()
 {
- 	waitForReady();
+	waitForReady();
 	if (_redisMemberStatus) {
-	    onlineNotification_Redis();
-	} else {
-	    onlineNotification_Postgres();
+		onlineNotification_Redis();
+	}
+	else {
+		onlineNotification_Postgres();
 	}
 }
 
@@ -1756,7 +1868,7 @@ void PostgreSQL::onlineNotification_Postgres()
 		auto c2 = _pool->borrow();
 		try {
 			fprintf(stderr, "%s onlineNotification_Postgres\n", _myAddressStr.c_str());
-			std::unordered_map< std::pair<uint64_t,uint64_t>,std::pair<int64_t,InetAddress>,_PairHasher > lastOnline;
+			std::unordered_map<std::pair<uint64_t, uint64_t>, std::pair<int64_t, InetAddress>, _PairHasher> lastOnline;
 			{
 				std::lock_guard<std::mutex> l(_lastOnline_l);
 				lastOnline.swap(_lastOnline);
@@ -1767,33 +1879,33 @@ void PostgreSQL::onlineNotification_Postgres()
 			pqxx::work w2(*c2->c);
 
 			fprintf(stderr, "online notification tick\n");
-			
+
 			bool firstRun = true;
 			bool memberAdded = false;
 			int updateCount = 0;
 
 			pqxx::pipeline pipe(w);
 
-			for (auto i=lastOnline.begin(); i != lastOnline.end(); ++i) {
+			for (auto i = lastOnline.begin(); i != lastOnline.end(); ++i) {
 				updateCount += 1;
 				uint64_t nwid_i = i->first.first;
 				char nwidTmp[64];
 				char memTmp[64];
 				char ipTmp[64];
-				OSUtils::ztsnprintf(nwidTmp,sizeof(nwidTmp), "%.16llx", nwid_i);
-				OSUtils::ztsnprintf(memTmp,sizeof(memTmp), "%.10llx", i->first.second);
+				OSUtils::ztsnprintf(nwidTmp, sizeof(nwidTmp), "%.16llx", nwid_i);
+				OSUtils::ztsnprintf(memTmp, sizeof(memTmp), "%.10llx", i->first.second);
 
-				if(!get(nwid_i, jtmp1, i->first.second, jtmp2)) {
-					continue; // skip non existent networks/members
+				if (! get(nwid_i, jtmp1, i->first.second, jtmp2)) {
+					continue;	// skip non existent networks/members
 				}
 
 				std::string networkId(nwidTmp);
 				std::string memberId(memTmp);
 
 				try {
-					pqxx::row r = w2.exec_params1("SELECT id, network_id FROM ztc_member WHERE network_id = $1 AND id = $2",
-						networkId, memberId);		
-				} catch (pqxx::unexpected_rows &e) {
+					pqxx::row r = w2.exec_params1("SELECT id, network_id FROM ztc_member WHERE network_id = $1 AND id = $2", networkId, memberId);
+				}
+				catch (pqxx::unexpected_rows& e) {
 					continue;
 				}
 
@@ -1803,19 +1915,20 @@ void PostgreSQL::onlineNotification_Postgres()
 
 				std::stringstream memberUpdate;
 				memberUpdate << "INSERT INTO ztc_member_status (network_id, member_id, address, last_updated) VALUES "
-					<< "('" << networkId << "', '" << memberId << "', ";
+							 << "('" << networkId << "', '" << memberId << "', ";
 				if (ipAddr.empty()) {
 					memberUpdate << "NULL, ";
-				} else {
+				}
+				else {
 					memberUpdate << "'" << ipAddr << "', ";
 				}
 				memberUpdate << "TO_TIMESTAMP(" << timestamp << "::double precision/1000)) "
-					<< " ON CONFLICT (network_id, member_id) DO UPDATE SET address = EXCLUDED.address, last_updated = EXCLUDED.last_updated";
+							 << " ON CONFLICT (network_id, member_id) DO UPDATE SET address = EXCLUDED.address, last_updated = EXCLUDED.last_updated";
 
 				pipe.insert(memberUpdate.str());
 				Metrics::pgsql_node_checkin++;
 			}
-			while(!pipe.empty()) {
+			while (! pipe.empty()) {
 				pipe.retrieve();
 			}
 
@@ -1823,15 +1936,15 @@ void PostgreSQL::onlineNotification_Postgres()
 			w.commit();
 			fprintf(stderr, "%s: Updated online status of %d members\n", _myAddressStr.c_str(), updateCount);
 #endif
-		} catch (std::exception &e) {
+		}
+		catch (std::exception& e) {
 			fprintf(stderr, "%s: error in onlinenotification thread: %s\n", _myAddressStr.c_str(), e.what());
-		} 
+		}
 		_pool->unborrow(c2);
 		_pool->unborrow(c);
 
 		ConnectionPoolStats stats = _pool->get_stats();
-		fprintf(stderr, "%s pool stats: in use size: %llu, available size: %llu, total: %llu\n",
-			_myAddressStr.c_str(), stats.borrowed_size, stats.pool_size, (stats.borrowed_size + stats.pool_size));
+		fprintf(stderr, "%s pool stats: in use size: %llu, available size: %llu, total: %llu\n", _myAddressStr.c_str(), stats.borrowed_size, stats.pool_size, (stats.borrowed_size + stats.pool_size));
 
 		std::this_thread::sleep_for(std::chrono::seconds(10));
 	}
@@ -1845,8 +1958,8 @@ void PostgreSQL::onlineNotification_Postgres()
 void PostgreSQL::onlineNotification_Redis()
 {
 	_connected = 1;
-	
-	char buf[11] = {0};
+
+	char buf[11] = { 0 };
 	std::string controllerId = std::string(_myAddress.toString(buf));
 
 	while (_run == 1) {
@@ -1854,22 +1967,24 @@ void PostgreSQL::onlineNotification_Redis()
 		auto start = std::chrono::high_resolution_clock::now();
 		uint64_t count = 0;
 
-		std::unordered_map< std::pair<uint64_t,uint64_t>,std::pair<int64_t,InetAddress>,_PairHasher > lastOnline;
+		std::unordered_map<std::pair<uint64_t, uint64_t>, std::pair<int64_t, InetAddress>, _PairHasher> lastOnline;
 		{
 			std::lock_guard<std::mutex> l(_lastOnline_l);
 			lastOnline.swap(_lastOnline);
 		}
 		try {
-			if (!lastOnline.empty()) {
+			if (! lastOnline.empty()) {
 				if (_rc->clusterMode) {
 					auto tx = _cluster->transaction(controllerId, true, false);
 					count = _doRedisUpdate(tx, controllerId, lastOnline);
-				} else {
+				}
+				else {
 					auto tx = _redis->transaction(true, false);
 					count = _doRedisUpdate(tx, controllerId, lastOnline);
 				}
 			}
-		} catch (sw::redis::Error &e) {
+		}
+		catch (sw::redis::Error& e) {
 			fprintf(stderr, "Error in online notification thread (redis): %s\n", e.what());
 		}
 
@@ -1883,23 +1998,22 @@ void PostgreSQL::onlineNotification_Redis()
 	}
 }
 
-uint64_t PostgreSQL::_doRedisUpdate(sw::redis::Transaction &tx, std::string &controllerId,
-	std::unordered_map< std::pair<uint64_t,uint64_t>,std::pair<int64_t,InetAddress>,_PairHasher > &lastOnline) 
+uint64_t PostgreSQL::_doRedisUpdate(sw::redis::Transaction& tx, std::string& controllerId, std::unordered_map<std::pair<uint64_t, uint64_t>, std::pair<int64_t, InetAddress>, _PairHasher>& lastOnline)
 
 {
 	nlohmann::json jtmp1, jtmp2;
 	uint64_t count = 0;
-	for (auto i=lastOnline.begin(); i != lastOnline.end(); ++i) {
+	for (auto i = lastOnline.begin(); i != lastOnline.end(); ++i) {
 		uint64_t nwid_i = i->first.first;
 		uint64_t memberid_i = i->first.second;
 		char nwidTmp[64];
 		char memTmp[64];
 		char ipTmp[64];
-		OSUtils::ztsnprintf(nwidTmp,sizeof(nwidTmp), "%.16llx", nwid_i);
-		OSUtils::ztsnprintf(memTmp,sizeof(memTmp), "%.10llx", memberid_i);
+		OSUtils::ztsnprintf(nwidTmp, sizeof(nwidTmp), "%.16llx", nwid_i);
+		OSUtils::ztsnprintf(memTmp, sizeof(memTmp), "%.10llx", memberid_i);
 
-		if (!get(nwid_i, jtmp1, memberid_i, jtmp2)){
-			continue;  // skip non existent members/networks
+		if (! get(nwid_i, jtmp1, memberid_i, jtmp2)) {
+			continue;	// skip non existent members/networks
 		}
 
 		std::string networkId(nwidTmp);
@@ -1909,41 +2023,30 @@ uint64_t PostgreSQL::_doRedisUpdate(sw::redis::Transaction &tx, std::string &con
 		std::string ipAddr = i->second.second.toIpString(ipTmp);
 		std::string timestamp = std::to_string(ts);
 
-		std::unordered_map<std::string, std::string> record = {
-			{"id", memberId},
-			{"address", ipAddr},
-			{"last_updated", std::to_string(ts)}
-		};
-		tx.zadd("nodes-online:{"+controllerId+"}", memberId, ts)
-			.zadd("nodes-online2:{"+controllerId+"}", networkId+"-"+memberId, ts)
-			.zadd("network-nodes-online:{"+controllerId+"}:"+networkId, memberId, ts)
-			.zadd("active-networks:{"+controllerId+"}", networkId, ts)
-			.sadd("network-nodes-all:{"+controllerId+"}:"+networkId, memberId)
-			.hmset("member:{"+controllerId+"}:"+networkId+":"+memberId, record.begin(), record.end());
+		std::unordered_map<std::string, std::string> record = { { "id", memberId }, { "address", ipAddr }, { "last_updated", std::to_string(ts) } };
+		tx.zadd("nodes-online:{" + controllerId + "}", memberId, ts)
+			.zadd("nodes-online2:{" + controllerId + "}", networkId + "-" + memberId, ts)
+			.zadd("network-nodes-online:{" + controllerId + "}:" + networkId, memberId, ts)
+			.zadd("active-networks:{" + controllerId + "}", networkId, ts)
+			.sadd("network-nodes-all:{" + controllerId + "}:" + networkId, memberId)
+			.hmset("member:{" + controllerId + "}:" + networkId + ":" + memberId, record.begin(), record.end());
 		++count;
 		Metrics::redis_node_checkin++;
 	}
 
 	// expire records from all-nodes and network-nodes member list
 	uint64_t expireOld = OSUtils::now() - 300000;
-	
-	tx.zremrangebyscore("nodes-online:{"+controllerId+"}",
-						sw::redis::RightBoundedInterval<double>(expireOld,
-																sw::redis::BoundType::LEFT_OPEN));
-	tx.zremrangebyscore("nodes-online2:{"+controllerId+"}",
-						sw::redis::RightBoundedInterval<double>(expireOld,
-																sw::redis::BoundType::LEFT_OPEN));
-	tx.zremrangebyscore("active-networks:{"+controllerId+"}",
-						sw::redis::RightBoundedInterval<double>(expireOld,
-																sw::redis::BoundType::LEFT_OPEN));
+
+	tx.zremrangebyscore("nodes-online:{" + controllerId + "}", sw::redis::RightBoundedInterval<double>(expireOld, sw::redis::BoundType::LEFT_OPEN));
+	tx.zremrangebyscore("nodes-online2:{" + controllerId + "}", sw::redis::RightBoundedInterval<double>(expireOld, sw::redis::BoundType::LEFT_OPEN));
+	tx.zremrangebyscore("active-networks:{" + controllerId + "}", sw::redis::RightBoundedInterval<double>(expireOld, sw::redis::BoundType::LEFT_OPEN));
 	{
 		std::shared_lock<std::shared_mutex> l(_networks_l);
-		for (const auto &it : _networks) {
+		for (const auto& it : _networks) {
 			uint64_t nwid_i = it.first;
 			char nwidTmp[64];
-			OSUtils::ztsnprintf(nwidTmp,sizeof(nwidTmp), "%.16llx", nwid_i);
-			tx.zremrangebyscore("network-nodes-online:{"+controllerId+"}:"+nwidTmp, 
-				 sw::redis::RightBoundedInterval<double>(expireOld, sw::redis::BoundType::LEFT_OPEN));
+			OSUtils::ztsnprintf(nwidTmp, sizeof(nwidTmp), "%.16llx", nwid_i);
+			tx.zremrangebyscore("network-nodes-online:{" + controllerId + "}:" + nwidTmp, sw::redis::RightBoundedInterval<double>(expireOld, sw::redis::BoundType::LEFT_OPEN));
 		}
 	}
 	tx.exec();
@@ -1952,5 +2055,4 @@ uint64_t PostgreSQL::_doRedisUpdate(sw::redis::Transaction &tx, std::string &con
 	return count;
 }
 
-
-#endif //ZT_CONTROLLER_USE_LIBPQ
+#endif	 // ZT_CONTROLLER_USE_LIBPQ
