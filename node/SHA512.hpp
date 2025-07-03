@@ -34,25 +34,25 @@ namespace ZeroTier {
 #define ZT_HAVE_NATIVE_SHA512 1
 static ZT_INLINE void SHA512(void* digest, const void* data, unsigned int len)
 {
-    CC_SHA512_CTX ctx;
-    CC_SHA512_Init(&ctx);
-    CC_SHA512_Update(&ctx, data, len);
-    CC_SHA512_Final(reinterpret_cast<unsigned char*>(digest), &ctx);
+	CC_SHA512_CTX ctx;
+	CC_SHA512_Init(&ctx);
+	CC_SHA512_Update(&ctx, data, len);
+	CC_SHA512_Final(reinterpret_cast<unsigned char*>(digest), &ctx);
 }
 static ZT_INLINE void SHA384(void* digest, const void* data, unsigned int len)
 {
-    CC_SHA512_CTX ctx;
-    CC_SHA384_Init(&ctx);
-    CC_SHA384_Update(&ctx, data, len);
-    CC_SHA384_Final(reinterpret_cast<unsigned char*>(digest), &ctx);
+	CC_SHA512_CTX ctx;
+	CC_SHA384_Init(&ctx);
+	CC_SHA384_Update(&ctx, data, len);
+	CC_SHA384_Final(reinterpret_cast<unsigned char*>(digest), &ctx);
 }
 static ZT_INLINE void SHA384(void* digest, const void* data0, unsigned int len0, const void* data1, unsigned int len1)
 {
-    CC_SHA512_CTX ctx;
-    CC_SHA384_Init(&ctx);
-    CC_SHA384_Update(&ctx, data0, len0);
-    CC_SHA384_Update(&ctx, data1, len1);
-    CC_SHA384_Final(reinterpret_cast<unsigned char*>(digest), &ctx);
+	CC_SHA512_CTX ctx;
+	CC_SHA384_Init(&ctx);
+	CC_SHA384_Update(&ctx, data0, len0);
+	CC_SHA384_Update(&ctx, data1, len1);
+	CC_SHA384_Final(reinterpret_cast<unsigned char*>(digest), &ctx);
 }
 #endif
 
@@ -83,6 +83,6 @@ void HMACSHA384(const uint8_t key[ZT_SYMMETRIC_KEY_SIZE], const void* msg, unsig
  */
 void KBKDFHMACSHA384(const uint8_t key[ZT_SYMMETRIC_KEY_SIZE], char label, char context, uint32_t iter, uint8_t out[ZT_SYMMETRIC_KEY_SIZE]);
 
-}   // namespace ZeroTier
+}	// namespace ZeroTier
 
 #endif

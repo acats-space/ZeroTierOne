@@ -32,48 +32,48 @@ namespace ZeroTier {
 
 class MacKextEthernetTap : public EthernetTap {
   public:
-    MacKextEthernetTap(
-        const char* homePath,
-        const MAC& mac,
-        unsigned int mtu,
-        unsigned int metric,
-        uint64_t nwid,
-        const char* friendlyName,
-        void (*handler)(void*, void*, uint64_t, const MAC&, const MAC&, unsigned int, unsigned int, const void*, unsigned int),
-        void* arg);
+	MacKextEthernetTap(
+		const char* homePath,
+		const MAC& mac,
+		unsigned int mtu,
+		unsigned int metric,
+		uint64_t nwid,
+		const char* friendlyName,
+		void (*handler)(void*, void*, uint64_t, const MAC&, const MAC&, unsigned int, unsigned int, const void*, unsigned int),
+		void* arg);
 
-    virtual ~MacKextEthernetTap();
+	virtual ~MacKextEthernetTap();
 
-    virtual void setEnabled(bool en);
-    virtual bool enabled() const;
-    virtual bool addIp(const InetAddress& ip);
-    virtual bool removeIp(const InetAddress& ip);
-    virtual std::vector<InetAddress> ips() const;
-    virtual void put(const MAC& from, const MAC& to, unsigned int etherType, const void* data, unsigned int len);
-    virtual std::string deviceName() const;
-    virtual void setFriendlyName(const char* friendlyName);
-    virtual void scanMulticastGroups(std::vector<MulticastGroup>& added, std::vector<MulticastGroup>& removed);
-    virtual void setMtu(unsigned int mtu);
-    virtual void setDns(const char* domain, const std::vector<InetAddress>& servers);
+	virtual void setEnabled(bool en);
+	virtual bool enabled() const;
+	virtual bool addIp(const InetAddress& ip);
+	virtual bool removeIp(const InetAddress& ip);
+	virtual std::vector<InetAddress> ips() const;
+	virtual void put(const MAC& from, const MAC& to, unsigned int etherType, const void* data, unsigned int len);
+	virtual std::string deviceName() const;
+	virtual void setFriendlyName(const char* friendlyName);
+	virtual void scanMulticastGroups(std::vector<MulticastGroup>& added, std::vector<MulticastGroup>& removed);
+	virtual void setMtu(unsigned int mtu);
+	virtual void setDns(const char* domain, const std::vector<InetAddress>& servers);
 
-    void threadMain() throw();
+	void threadMain() throw();
 
   private:
-    void (*_handler)(void*, void*, uint64_t, const MAC&, const MAC&, unsigned int, unsigned int, const void*, unsigned int);
-    void* _arg;
-    uint64_t _nwid;
-    Thread _thread;
-    std::string _homePath;
-    std::string _dev;
-    std::vector<MulticastGroup> _multicastGroups;
-    unsigned int _mtu;
-    unsigned int _metric;
-    int _fd;
-    int _shutdownSignalPipe[2];
-    volatile bool _enabled;
-    std::vector<std::thread> _rxThreads;
+	void (*_handler)(void*, void*, uint64_t, const MAC&, const MAC&, unsigned int, unsigned int, const void*, unsigned int);
+	void* _arg;
+	uint64_t _nwid;
+	Thread _thread;
+	std::string _homePath;
+	std::string _dev;
+	std::vector<MulticastGroup> _multicastGroups;
+	unsigned int _mtu;
+	unsigned int _metric;
+	int _fd;
+	int _shutdownSignalPipe[2];
+	volatile bool _enabled;
+	std::vector<std::thread> _rxThreads;
 };
 
-}   // namespace ZeroTier
+}	// namespace ZeroTier
 
 #endif

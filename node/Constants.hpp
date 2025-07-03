@@ -61,7 +61,7 @@
 #ifdef ZT_SSO_SUPPORTED
 #define ZT_SSO_ENABLED 1
 #endif
-#define likely(x)   __builtin_expect((x), 1)
+#define likely(x)	__builtin_expect((x), 1)
 #define unlikely(x) __builtin_expect((x), 0)
 #include <TargetConditionals.h>
 #ifndef __UNIX_LIKE__
@@ -85,9 +85,9 @@
 #endif
 #include <machine/endian.h>
 #ifndef __BYTE_ORDER
-#define __BYTE_ORDER    _BYTE_ORDER
+#define __BYTE_ORDER	_BYTE_ORDER
 #define __LITTLE_ENDIAN _LITTLE_ENDIAN
-#define __BIG_ENDIAN    _BIG_ENDIAN
+#define __BIG_ENDIAN	_BIG_ENDIAN
 #endif
 #endif
 
@@ -146,7 +146,7 @@
 
 // Define ZT_NO_TYPE_PUNNING to disable reckless casts on anything other than x86/x64.
 #if (! (defined(__amd64__) || defined(__amd64) || defined(__x86_64__) || defined(__x86_64) || defined(_M_AMD64) || defined(_M_X64) || defined(i386) || defined(__i386) || defined(__i386__) || defined(__i486__) || defined(__i586__)          \
-        || defined(__i686__) || defined(_M_IX86) || defined(__X86__) || defined(_X86_) || defined(__I86__) || defined(__INTEL__) || defined(__386)))
+		|| defined(__i686__) || defined(_M_IX86) || defined(__X86__) || defined(_X86_) || defined(__I86__) || defined(__INTEL__) || defined(__386)))
 #ifndef ZT_NO_TYPE_PUNNING
 #define ZT_NO_TYPE_PUNNING 1
 #endif
@@ -162,19 +162,19 @@
 #undef __BYTE_ORDER
 #undef __LITTLE_ENDIAN
 #undef __BIG_ENDIAN
-#define __BIG_ENDIAN    4321
+#define __BIG_ENDIAN	4321
 #define __LITTLE_ENDIAN 1234
-#define __BYTE_ORDER    1234
+#define __BYTE_ORDER	1234
 #endif
 
 #ifdef __WINDOWS__
-#define ZT_PATH_SEPARATOR   '\\'
+#define ZT_PATH_SEPARATOR	'\\'
 #define ZT_PATH_SEPARATOR_S "\\"
-#define ZT_EOL_S            "\r\n"
+#define ZT_EOL_S			"\r\n"
 #else
-#define ZT_PATH_SEPARATOR   '/'
+#define ZT_PATH_SEPARATOR	'/'
 #define ZT_PATH_SEPARATOR_S "/"
-#define ZT_EOL_S            "\n"
+#define ZT_EOL_S			"\n"
 #endif
 
 #ifndef __BYTE_ORDER
@@ -204,37 +204,37 @@
 #endif
 
 #if defined(_WIN32)
-#define ZT_PLATFORM_NAME "windows"   // Windows
+#define ZT_PLATFORM_NAME "windows"	 // Windows
 #elif defined(_WIN64)
-#define ZT_PLATFORM_NAME "windows"   // Windows
+#define ZT_PLATFORM_NAME "windows"	 // Windows
 #elif defined(__CYGWIN__)
-#define ZT_PLATFORM_NAME "windows"   // Windows (Cygwin POSIX under Microsoft Window)
+#define ZT_PLATFORM_NAME "windows"	 // Windows (Cygwin POSIX under Microsoft Window)
 #elif defined(__ANDROID__)
-#define ZT_PLATFORM_NAME "android"   // Android (implies Linux, so it must come first)
+#define ZT_PLATFORM_NAME "android"	 // Android (implies Linux, so it must come first)
 #elif defined(__linux__)
 #define ZT_PLATFORM_NAME "linux"   // Debian, Ubuntu, Gentoo, Fedora, openSUSE, RedHat, Centos and other
 #elif defined(__unix__) || ! defined(__APPLE__) && defined(__MACH__)
 #include <sys/param.h>
 #if defined(BSD)
-#define ZT_PLATFORM_NAME "bsd"   // FreeBSD, NetBSD, OpenBSD, DragonFly BSD
+#define ZT_PLATFORM_NAME "bsd"	 // FreeBSD, NetBSD, OpenBSD, DragonFly BSD
 #endif
 #elif defined(__hpux)
 #define ZT_PLATFORM_NAME "hp-ux"   // HP-UX
 #elif defined(_AIX)
-#define ZT_PLATFORM_NAME "aix"                  // IBM AIX
-#elif defined(__APPLE__) && defined(__MACH__)   // Apple OSX and iOS (Darwin)
+#define ZT_PLATFORM_NAME "aix"					// IBM AIX
+#elif defined(__APPLE__) && defined(__MACH__)	// Apple OSX and iOS (Darwin)
 #include <TargetConditionals.h>
 #if defined(TARGET_IPHONE_SIMULATOR) && TARGET_IPHONE_SIMULATOR == 1
-#define ZT_PLATFORM_NAME "ios_sim"   // Apple iOS
+#define ZT_PLATFORM_NAME "ios_sim"	 // Apple iOS
 #elif defined(TARGET_OS_IPAD) && TARGET_OS_IPAD == 1
 #define ZT_PLATFORM_NAME "ios_ipad"
 #elif defined(TARGET_OS_IPHONE) && TARGET_OS_IPHONE == 1
-#define ZT_PLATFORM_NAME "ios_iphone"   // Apple iOS
+#define ZT_PLATFORM_NAME "ios_iphone"	// Apple iOS
 #elif defined(TARGET_OS_MAC) && TARGET_OS_MAC == 1
 #define ZT_PLATFORM_NAME "macos"   // Apple OSX
 #endif
 #elif defined(__sun) && defined(__SVR4)
-#define ZT_PLATFORM_NAME "solaris"   // Oracle Solaris, Open Indiana
+#define ZT_PLATFORM_NAME "solaris"	 // Oracle Solaris, Open Indiana
 #else
 #define ZT_PLATFORM_NAME "unknown"
 #endif
@@ -581,23 +581,23 @@
 /**
  * Drainage constants for VERB_ECHO rate-limiters
  */
-#define ZT_ECHO_CUTOFF_LIMIT     ((1000 / ZT_CORE_TIMER_TASK_GRANULARITY) * ZT_MAX_PEER_NETWORK_PATHS)
+#define ZT_ECHO_CUTOFF_LIMIT	 ((1000 / ZT_CORE_TIMER_TASK_GRANULARITY) * ZT_MAX_PEER_NETWORK_PATHS)
 #define ZT_ECHO_DRAINAGE_DIVISOR (1000 / ZT_ECHO_CUTOFF_LIMIT)
 
 /**
  * Drainage constants for VERB_QOS rate-limiters
  */
-#define ZT_QOS_CUTOFF_LIMIT     ((1000 / ZT_CORE_TIMER_TASK_GRANULARITY) * ZT_MAX_PEER_NETWORK_PATHS)
+#define ZT_QOS_CUTOFF_LIMIT		((1000 / ZT_CORE_TIMER_TASK_GRANULARITY) * ZT_MAX_PEER_NETWORK_PATHS)
 #define ZT_QOS_DRAINAGE_DIVISOR (1000 / ZT_QOS_CUTOFF_LIMIT)
 
 /**
  * Drainage constants for VERB_ACK rate-limiters
  */
-#define ZT_ACK_CUTOFF_LIMIT     128
+#define ZT_ACK_CUTOFF_LIMIT		128
 #define ZT_ACK_DRAINAGE_DIVISOR (1000 / ZT_ACK_CUTOFF_LIMIT)
 
 #define ZT_BOND_DEFAULT_REFRACTORY_PERIOD 8000
-#define ZT_BOND_MAX_REFRACTORY_PERIOD     600000
+#define ZT_BOND_MAX_REFRACTORY_PERIOD	  600000
 
 /**
  * Maximum number of direct path pushes within cutoff time
@@ -709,8 +709,8 @@
  * Artificially inflates the failover score for paths which meet
  * certain non-performance-related policy ranking criteria.
  */
-#define ZT_BOND_FAILOVER_HANDICAP_PREFERRED  500
-#define ZT_BOND_FAILOVER_HANDICAP_PRIMARY    1000
+#define ZT_BOND_FAILOVER_HANDICAP_PREFERRED	 500
+#define ZT_BOND_FAILOVER_HANDICAP_PRIMARY	 1000
 #define ZT_BOND_FAILOVER_HANDICAP_NEGOTIATED 5000
 
 /**
@@ -754,14 +754,14 @@
 #define ZT_THREAD_MIN_STACK_SIZE 1048576
 
 // Exceptions thrown in core ZT code
-#define ZT_EXCEPTION_OUT_OF_BOUNDS                                       100
-#define ZT_EXCEPTION_OUT_OF_MEMORY                                       101
-#define ZT_EXCEPTION_PRIVATE_KEY_REQUIRED                                102
-#define ZT_EXCEPTION_INVALID_ARGUMENT                                    103
-#define ZT_EXCEPTION_INVALID_IDENTITY                                    104
-#define ZT_EXCEPTION_INVALID_SERIALIZED_DATA_INVALID_TYPE                200
-#define ZT_EXCEPTION_INVALID_SERIALIZED_DATA_OVERFLOW                    201
+#define ZT_EXCEPTION_OUT_OF_BOUNDS										 100
+#define ZT_EXCEPTION_OUT_OF_MEMORY										 101
+#define ZT_EXCEPTION_PRIVATE_KEY_REQUIRED								 102
+#define ZT_EXCEPTION_INVALID_ARGUMENT									 103
+#define ZT_EXCEPTION_INVALID_IDENTITY									 104
+#define ZT_EXCEPTION_INVALID_SERIALIZED_DATA_INVALID_TYPE				 200
+#define ZT_EXCEPTION_INVALID_SERIALIZED_DATA_OVERFLOW					 201
 #define ZT_EXCEPTION_INVALID_SERIALIZED_DATA_INVALID_CRYPTOGRAPHIC_TOKEN 202
-#define ZT_EXCEPTION_INVALID_SERIALIZED_DATA_BAD_ENCODING                203
+#define ZT_EXCEPTION_INVALID_SERIALIZED_DATA_BAD_ENCODING				 203
 
 #endif

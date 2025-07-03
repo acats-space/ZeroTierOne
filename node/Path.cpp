@@ -20,11 +20,11 @@ namespace ZeroTier {
 
 bool Path::send(const RuntimeEnvironment* RR, void* tPtr, const void* data, unsigned int len, int64_t now)
 {
-    if (RR->node->putPacket(tPtr, _localSocket, _addr, data, len)) {
-        _lastOut = now;
-        return true;
-    }
-    return false;
+	if (RR->node->putPacket(tPtr, _localSocket, _addr, data, len)) {
+		_lastOut = now;
+		return true;
+	}
+	return false;
 }
 
-}   // namespace ZeroTier
+}	// namespace ZeroTier

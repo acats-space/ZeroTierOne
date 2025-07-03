@@ -32,17 +32,17 @@ namespace ZeroTier {
  */
 class Poly1305 {
   public:
-    /**
-     * Compute a one-time authentication code
-     *
-     * @param auth Buffer to receive code -- MUST be 16 bytes in length
-     * @param data Data to authenticate
-     * @param len Length of data to authenticate in bytes
-     * @param key 32-byte one-time use key to authenticate data (must not be reused)
-     */
-    static void compute(void* auth, const void* data, unsigned int len, const void* key);
+	/**
+	 * Compute a one-time authentication code
+	 *
+	 * @param auth Buffer to receive code -- MUST be 16 bytes in length
+	 * @param data Data to authenticate
+	 * @param len Length of data to authenticate in bytes
+	 * @param key 32-byte one-time use key to authenticate data (must not be reused)
+	 */
+	static void compute(void* auth, const void* data, unsigned int len, const void* key);
 };
 
-}   // namespace ZeroTier
+}	// namespace ZeroTier
 
 #endif

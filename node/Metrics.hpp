@@ -20,7 +20,7 @@ namespace prometheus {
 namespace simpleapi {
 extern std::shared_ptr<Registry> registry_ptr;
 }
-}   // namespace prometheus
+}	// namespace prometheus
 
 namespace ZeroTier {
 namespace Metrics {
@@ -158,7 +158,7 @@ extern prometheus::simpleapi::gauge_metric_t pool_avail;
 extern prometheus::simpleapi::gauge_metric_t pool_in_use;
 extern prometheus::simpleapi::counter_metric_t pool_errors;
 #endif
-}   // namespace Metrics
-}   // namespace ZeroTier
+}	// namespace Metrics
+}	// namespace ZeroTier
 
-#endif   // METRICS_H_
+#endif	 // METRICS_H_

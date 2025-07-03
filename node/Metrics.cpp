@@ -17,8 +17,8 @@ namespace simpleapi {
 std::shared_ptr<Registry> registry_ptr = std::make_shared<Registry>();
 Registry& registry = *registry_ptr;
 SaveToFile saver;
-}   // namespace simpleapi
-}   // namespace prometheus
+}	// namespace simpleapi
+}	// namespace prometheus
 
 namespace ZeroTier {
 namespace Metrics {
@@ -159,5 +159,5 @@ prometheus::simpleapi::gauge_metric_t pool_avail { "controller_pgsql_available_c
 prometheus::simpleapi::gauge_metric_t pool_in_use { "controller_pgsql_in_use_conns", "number of postgres database connections in use" };
 prometheus::simpleapi::counter_metric_t pool_errors { "controller_pgsql_connection_errors", "number of connection errors the connection pool has seen" };
 #endif
-}   // namespace Metrics
-}   // namespace ZeroTier
+}	// namespace Metrics
+}	// namespace ZeroTier
