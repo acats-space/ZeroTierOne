@@ -12,9 +12,10 @@
 #ifndef METRICS_H_
 #define METRICS_H_
 
-#include <prometheus/gauge.h>
-#include <prometheus/histogram.h>
+// clang-format off
 #include <prometheus/simpleapi.h>
+#include <prometheus/histogram.h>
+// clang-format on
 
 namespace prometheus {
 namespace simpleapi {
