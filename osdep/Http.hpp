@@ -19,9 +19,11 @@
 #include <string>
 
 #if defined(_WIN32) || defined(_WIN64)
-#include <windows.h>
+// clang-format off
 #include <winsock2.h>
 #include <ws2tcpip.h>
+#include <windows.h>
+// clang-format on
 #else
 #include <arpa/inet.h>
 #include <netinet/in.h>
