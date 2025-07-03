@@ -40,7 +40,8 @@
 #include "LFDB.hpp"
 #include "FileDB.hpp"
 #ifdef ZT_CONTROLLER_USE_LIBPQ
-#include "PostgreSQL.hpp"
+#include "CV1.hpp"
+#include "CV2.hpp"
 #endif
 
 #include "../node/Node.hpp"
@@ -534,8 +535,13 @@ void EmbeddedNetworkController::init(const Identity &signingId,Sender *sender)
 
 #ifdef ZT_CONTROLLER_USE_LIBPQ
 	if ((_path.length() > 9)&&(_path.substr(0,9) == "postgres:")) {
-		_db.addDB(std::shared_ptr<DB>(new PostgreSQL(_signingId,_path.substr(9).c_str(), _listenPort, _rc)));
+		fprintf(stderr, "CV1\n");
+		_db.addDB(std::shared_ptr<DB>(new CV1(_signingId,_path.substr(9).c_str(), _listenPort, _rc)));
+	} else if ((_path.length() > 4)&&(_path.substr(0,4) == "cv2:")) {
+		fprintf(stderr, "CV2\n");
+		_db.addDB(std::shared_ptr<DB>(new CV2(_signingId,_path.substr(4).c_str(),_listenPort)));
 	} else {
+		fprintf(stderr, "FileDB\n");
 #endif
 		_db.addDB(std::shared_ptr<DB>(new FileDB(_path.c_str())));
 #ifdef ZT_CONTROLLER_USE_LIBPQ
@@ -1400,7 +1406,11 @@ void EmbeddedNetworkController::_request(
 	c2++;
 	b2.start();
 #endif
-	_db.nodeIsOnline(nwid,identity.address().toInt(),fromAddr);
+	char osArch[256];
+	metaData.get(ZT_NETWORKCONFIG_REQUEST_METADATA_KEY_OS_ARCH, osArch, sizeof(osArch));
+	// fprintf(stderr, "Network Config Request: nwid=%.16llx, nodeid=%.10llx, osArch=%s\n",
+	// 	nwid, identity.address().toInt(), osArch);
+	_db.nodeIsOnline(nwid,identity.address().toInt(),fromAddr, osArch);
 #ifdef CENTRAL_CONTROLLER_REQUEST_BENCHMARK
 	b2.stop();
 
