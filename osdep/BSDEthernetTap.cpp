@@ -436,75 +436,82 @@ void BSDEthernetTap::setMtu(unsigned int mtu)
 
 void BSDEthernetTap::threadMain() throw()
 {
-    // Wait for a moment after startup -- wait for Network to finish
-    // constructing itself.
-    Thread::sleep(500);
+	// Wait for a moment after startup -- wait for Network to finish
+	// constructing itself.
+	Thread::sleep(500);
 
-    for (unsigned int i = 0; i < _concurrency; ++i) {
-        _rxThreads.push_back(std::thread([this, i, _pinning] {
-            if (_pinning) {
-                int pinCore = i % _concurrency;
-                fprintf(stderr, "Pinning thread %d to core %d\n", i, pinCore);
-                pthread_t self = pthread_self();
-                cpu_set_t cpuset;
-                CPU_ZERO(&cpuset);
-                CPU_SET(pinCore, &cpuset);
-                // int rc = sched_setaffinity(self, sizeof(cpu_set_t), &cpuset);
-                int rc = pthread_setaffinity_np(self, sizeof(cpu_set_t), &cpuset);
-                if (rc != 0) {
-                    fprintf(stderr, "Failed to pin thread %d to core %d: %s\n", i, pinCore, strerror(errno));
-                    exit(1);
-                }
-            }
+#ifndef __OpenBSD__
+	bool pinning = _pinning;
 
-            uint8_t b[ZT_TAP_BUF_SIZE];
-            MAC to, from;
-            fd_set readfds, nullfds;
-            int n, nfds, r;
+	for (unsigned int i = 0; i < _concurrency; ++i) {
+		_rxThreads.push_back(std::thread([this, i, pinning] {
 
-            FD_ZERO(&readfds);
-            FD_ZERO(&nullfds);
-            nfds = (int)std::max(_shutdownSignalPipe[0], _fd) + 1;
+			if (pinning) {
+				int pinCore = i % _concurrency;
+				fprintf(stderr, "Pinning thread %d to core %d\n", i, pinCore);
+				pthread_t self = pthread_self();
+				cpu_set_t cpuset;
+				CPU_ZERO(&cpuset);
+				CPU_SET(pinCore, &cpuset);
+				//int rc = sched_setaffinity(self, sizeof(cpu_set_t), &cpuset);
+				int rc = pthread_setaffinity_np(self, sizeof(cpu_set_t), &cpuset);
+				if (rc != 0)
+				{
+					fprintf(stderr, "Failed to pin thread %d to core %d: %s\n", i, pinCore, strerror(errno));
+					exit(1);
+				}
+			}
+#endif // __OpenBSD__
 
-            r = 0;
+			uint8_t b[ZT_TAP_BUF_SIZE];
+			MAC to, from;
+			fd_set readfds, nullfds;
+			int n, nfds, r;
 
-            for (;;) {
-                FD_SET(_shutdownSignalPipe[0], &readfds);
-                FD_SET(_fd, &readfds);
-                select(nfds, &readfds, &nullfds, &nullfds, (struct timeval*)0);
+			FD_ZERO(&readfds);
+			FD_ZERO(&nullfds);
+			nfds = (int)std::max(_shutdownSignalPipe[0],_fd) + 1;
 
-                if (FD_ISSET(_shutdownSignalPipe[0], &readfds))   // writes to shutdown pipe terminate thread
-                    break;
+			r = 0;
 
-                if (FD_ISSET(_fd, &readfds)) {
-                    n = (int)::read(_fd, b + r, sizeof(b) - r);
-                    if (n < 0) {
-                        if ((errno != EINTR) && (errno != ETIMEDOUT))
-                            break;
-                    }
-                    else {
-                        // Some tap drivers like to send the ethernet frame and the
-                        // payload in two chunks, so handle that by accumulating
-                        // data until we have at least a frame.
-                        r += n;
-                        if (r > 14) {
-                            if (r > ((int)_mtu + 14))   // sanity check for weird TAP behavior on some platforms
-                                r = _mtu + 14;
+			for(;;) {
+				FD_SET(_shutdownSignalPipe[0],&readfds);
+				FD_SET(_fd,&readfds);
+				select(nfds,&readfds,&nullfds,&nullfds,(struct timeval *)0);
 
-                            if (_enabled) {
-                                to.setTo(b, 6);
-                                from.setTo(b + 6, 6);
-                                unsigned int etherType = ntohs(((const uint16_t*)b)[6]);
-                                _handler(_arg, (void*)0, _nwid, from, to, etherType, 0, (const void*)(b + 14), r - 14);
-                            }
+				if (FD_ISSET(_shutdownSignalPipe[0],&readfds)) // writes to shutdown pipe terminate thread
+					break;
 
-                            r = 0;
-                        }
-                    }
-                }
-            }
-        }));
-    }
+				if (FD_ISSET(_fd,&readfds)) {
+					n = (int)::read(_fd,b + r,sizeof(b) - r);
+					if (n < 0) {
+						if ((errno != EINTR)&&(errno != ETIMEDOUT))
+							break;
+					} else {
+						// Some tap drivers like to send the ethernet frame and the
+						// payload in two chunks, so handle that by accumulating
+						// data until we have at least a frame.
+						r += n;
+						if (r > 14) {
+							if (r > ((int)_mtu + 14)) // sanity check for weird TAP behavior on some platforms
+								r = _mtu + 14;
+
+							if (_enabled) {
+								to.setTo(b,6);
+								from.setTo(b + 6,6);
+								unsigned int etherType = ntohs(((const uint16_t *)b)[6]);
+								_handler(_arg,(void *)0,_nwid,from,to,etherType,0,(const void *)(b + 14),r - 14);
+							}
+
+							r = 0;
+						}
+					}
+				}
+			}
+#ifndef __OpenBSD__
+		}));
+	}
+#endif // __OpenBSD__
 }
 
 }   // namespace ZeroTier
