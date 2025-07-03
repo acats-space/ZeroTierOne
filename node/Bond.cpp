@@ -1750,19 +1750,12 @@ void Bond::processActiveBackupTasks(void* tPtr, int64_t now)
 			}
 		}
 	}
-	/*
 	// Sort queue based on performance
-	if (! _abFailoverQueue.empty()) {
-		for (int i = 0; i < _abFailoverQueue.size(); i++) {
-			int value_to_insert = _abFailoverQueue[i];
-			int hole_position = i;
-			while (hole_position > 0 && (_abFailoverQueue[hole_position - 1] > value_to_insert)) {
-				_abFailoverQueue[hole_position] = _abFailoverQueue[hole_position - 1];
-				hole_position = hole_position - 1;
-			}
-			_abFailoverQueue[hole_position] = value_to_insert;
-		}
-	}*/
+	std::sort(_abFailoverQueue.begin(), _abFailoverQueue.end(),
+		[this](const int a, const int b) {
+			// Sort by failover score in descending order (highest score first)
+			return _paths[a].failoverScore > _paths[b].failoverScore;
+		});
 
 	/**
 	 * Short-circuit if we have no queued paths
