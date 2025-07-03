@@ -160,13 +160,18 @@ void FileDB::eraseMember(const uint64_t networkId, const uint64_t memberId)
 	this->_online[networkId].erase(memberId);
 }
 
-void FileDB::nodeIsOnline(const uint64_t networkId, const uint64_t memberId, const InetAddress& physicalAddress)
+void FileDB::nodeIsOnline(const uint64_t networkId, const uint64_t memberId, const InetAddress& physicalAddress, const char* osArch)
 {
 	char mid[32], atmp[64];
 	OSUtils::ztsnprintf(mid, sizeof(mid), "%.10llx", (unsigned long long)memberId);
 	physicalAddress.toString(atmp);
 	std::lock_guard<std::mutex> l(this->_online_l);
 	this->_online[networkId][memberId][OSUtils::now()] = physicalAddress;
+}
+
+void FileDB::nodeIsOnline(const uint64_t networkId, const uint64_t memberId, const InetAddress& physicalAddress)
+{
+	this->nodeIsOnline(networkId, memberId, physicalAddress, "unknown/unknown");
 }
 
 }	// namespace ZeroTier

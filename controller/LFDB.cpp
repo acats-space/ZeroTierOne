@@ -420,7 +420,7 @@ void LFDB::eraseMember(const uint64_t networkId, const uint64_t memberId)
 	// TODO
 }
 
-void LFDB::nodeIsOnline(const uint64_t networkId, const uint64_t memberId, const InetAddress& physicalAddress)
+void LFDB::nodeIsOnline(const uint64_t networkId, const uint64_t memberId, const InetAddress& physicalAddress, const char* osArch)
 {
 	std::lock_guard<std::mutex> l(_state_l);
 	auto nw = _state.find(networkId);
@@ -433,6 +433,11 @@ void LFDB::nodeIsOnline(const uint64_t networkId, const uint64_t memberId, const
 			m->second.lastOnlineDirty = true;
 		}
 	}
+}
+
+void LFDB::nodeIsOnline(const uint64_t networkId, const uint64_t memberId, const InetAddress& physicalAddress)
+{
+	this->nodeIsOnline(networkId, memberId, physicalAddress, "unknown/unknown");
 }
 
 }	// namespace ZeroTier

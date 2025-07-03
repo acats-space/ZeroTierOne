@@ -29,6 +29,7 @@ class FileDB : public DB {
 	virtual void eraseNetwork(const uint64_t networkId);
 	virtual void eraseMember(const uint64_t networkId, const uint64_t memberId);
 	virtual void nodeIsOnline(const uint64_t networkId, const uint64_t memberId, const InetAddress& physicalAddress);
+	virtual void nodeIsOnline(const uint64_t networkId, const uint64_t memberId, const InetAddress& physicalAddress, const char* osArch);
 
   protected:
 	std::string _path;

@@ -10,8 +10,10 @@
  * of this software will be governed by version 2.0 of the Apache License.
  */
 
-#include <prometheus/histogram.h>
+// clang-format off
 #include <prometheus/simpleapi.h>
+#include <prometheus/histogram.h>
+// clang-format on
 
 namespace prometheus {
 namespace simpleapi {

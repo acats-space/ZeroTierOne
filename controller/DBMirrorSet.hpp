@@ -43,7 +43,8 @@ class DBMirrorSet : public DB::ChangeListener {
 	bool save(nlohmann::json& record, bool notifyListeners);
 	void eraseNetwork(const uint64_t networkId);
 	void eraseMember(const uint64_t networkId, const uint64_t memberId);
-	void nodeIsOnline(const uint64_t networkId, const uint64_t memberId, const InetAddress& physicalAddress);
+	virtual void nodeIsOnline(const uint64_t networkId, const uint64_t memberId, const InetAddress& physicalAddress);
+	virtual void nodeIsOnline(const uint64_t networkId, const uint64_t memberId, const InetAddress& physicalAddress, const char* osArch);
 
 	// These are called by various DB instances when changes occur.
 	virtual void onNetworkUpdate(const void* db, uint64_t networkId, const nlohmann::json& network);

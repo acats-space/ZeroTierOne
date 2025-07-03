@@ -2217,6 +2217,7 @@ class OneServiceImpl : public OneService {
 		auto statusGet = [&, setContent](const httplib::Request& req, httplib::Response& res) {
 			ZT_NodeStatus status;
 			_node->status(&status);
+
 			auto out = json::object();
 			char tmp[256] = {};
 
