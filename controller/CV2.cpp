@@ -17,16 +17,15 @@
 
 #include "../node/Constants.hpp"
 #include "../node/SHA512.hpp"
-#include "EmbeddedNetworkController.hpp"
 #include "../version.h"
 #include "CtlUtil.hpp"
+#include "EmbeddedNetworkController.hpp"
 
+#include <chrono>
+#include <climits>
+#include <iomanip>
 #include <libpq-fe.h>
 #include <sstream>
-#include <iomanip>
-#include <climits>
-#include <chrono>
-
 
 using json = nlohmann::json;
 
@@ -36,29 +35,19 @@ namespace {
 
 using namespace ZeroTier;
 
-CV2::CV2(const Identity &myId, const char *path, int listenPort)
-	: DB()
-	, _pool()
-	, _myId(myId)
-	, _myAddress(myId.address())
-	, _ready(0)
-	, _connected(1)
-	, _run(1)
-	, _waitNoticePrinted(false)
-	, _listenPort(listenPort)
+CV2::CV2(const Identity& myId, const char* path, int listenPort) : DB(), _pool(), _myId(myId), _myAddress(myId.address()), _ready(0), _connected(1), _run(1), _waitNoticePrinted(false), _listenPort(listenPort)
 {
 	fprintf(stderr, "CV2::CV2\n");
 	char myAddress[64];
 	_myAddressStr = myId.address().toString(myAddress);
 
-    _connString = std::string(path);
-    
+	_connString = std::string(path);
+
 	auto f = std::make_shared<PostgresConnFactory>(_connString);
-	_pool = std::make_shared<ConnectionPool<PostgresConnection> >(
-		15, 5, std::static_pointer_cast<ConnectionFactory>(f));
-	
+	_pool = std::make_shared<ConnectionPool<PostgresConnection> >(15, 5, std::static_pointer_cast<ConnectionFactory>(f));
+
 	memset(_ssoPsk, 0, sizeof(_ssoPsk));
-	char *const ssoPskHex = getenv("ZT_SSO_PSK");
+	char* const ssoPskHex = getenv("ZT_SSO_PSK");
 #ifdef ZT_TRACE
 	fprintf(stderr, "ZT_SSO_PSK: %s\n", ssoPskHex);
 #endif
@@ -70,7 +59,7 @@ CV2::CV2(const Identity &myId, const char *path, int listenPort)
 	}
 
 	_readyLock.lock();
-	
+
 	fprintf(stderr, "[%s] NOTICE: %.10llx controller PostgreSQL waiting for initial data download..." ZT_EOL_S, ::_timestr(), (unsigned long long)_myAddress.toInt());
 	_waitNoticePrinted = true;
 
@@ -112,54 +101,59 @@ bool CV2::waitForReady()
 
 bool CV2::isReady()
 {
-    return (_ready == 2) && _connected;
-} 
+	return (_ready == 2) && _connected;
+}
 
-bool CV2::save(nlohmann::json &record,bool notifyListeners)
+bool CV2::save(nlohmann::json& record, bool notifyListeners)
 {
 	bool modified = false;
 	try {
-		if (!record.is_object()) {
+		if (! record.is_object()) {
 			fprintf(stderr, "record is not an object?!?\n");
 			return false;
 		}
 		const std::string objtype = record["objtype"];
 		if (objtype == "network") {
-			//fprintf(stderr, "network save\n");
-			const uint64_t nwid = OSUtils::jsonIntHex(record["id"],0ULL);
+			// fprintf(stderr, "network save\n");
+			const uint64_t nwid = OSUtils::jsonIntHex(record["id"], 0ULL);
 			if (nwid) {
 				nlohmann::json old;
-				get(nwid,old);
-				if ((!old.is_object())||(!_compareRecords(old,record))) {
-					record["revision"] = OSUtils::jsonInt(record["revision"],0ULL) + 1ULL;
-					_commitQueue.post(std::pair<nlohmann::json,bool>(record,notifyListeners));
+				get(nwid, old);
+				if ((! old.is_object()) || (! _compareRecords(old, record))) {
+					record["revision"] = OSUtils::jsonInt(record["revision"], 0ULL) + 1ULL;
+					_commitQueue.post(std::pair<nlohmann::json, bool>(record, notifyListeners));
 					modified = true;
 				}
 			}
-		} else if (objtype == "member") {
+		}
+		else if (objtype == "member") {
 			std::string networkId = record["nwid"];
 			std::string memberId = record["id"];
-			const uint64_t nwid = OSUtils::jsonIntHex(record["nwid"],0ULL);
-			const uint64_t id = OSUtils::jsonIntHex(record["id"],0ULL);
-			//fprintf(stderr, "member save %s-%s\n", networkId.c_str(), memberId.c_str());
-			if ((id)&&(nwid)) {
-				nlohmann::json network,old;
-				get(nwid,network,id,old);
-				if ((!old.is_object())||(!_compareRecords(old,record))) {
-					//fprintf(stderr, "commit queue post\n");
-					record["revision"] = OSUtils::jsonInt(record["revision"],0ULL) + 1ULL;
-					_commitQueue.post(std::pair<nlohmann::json,bool>(record,notifyListeners));
+			const uint64_t nwid = OSUtils::jsonIntHex(record["nwid"], 0ULL);
+			const uint64_t id = OSUtils::jsonIntHex(record["id"], 0ULL);
+			// fprintf(stderr, "member save %s-%s\n", networkId.c_str(), memberId.c_str());
+			if ((id) && (nwid)) {
+				nlohmann::json network, old;
+				get(nwid, network, id, old);
+				if ((! old.is_object()) || (! _compareRecords(old, record))) {
+					// fprintf(stderr, "commit queue post\n");
+					record["revision"] = OSUtils::jsonInt(record["revision"], 0ULL) + 1ULL;
+					_commitQueue.post(std::pair<nlohmann::json, bool>(record, notifyListeners));
 					modified = true;
-				} else {
-					//fprintf(stderr, "no change\n");
+				}
+				else {
+					// fprintf(stderr, "no change\n");
 				}
 			}
-		} else {
+		}
+		else {
 			fprintf(stderr, "uhh waaat\n");
 		}
-	} catch (std::exception &e) {
+	}
+	catch (std::exception& e) {
 		fprintf(stderr, "Error on PostgreSQL::save: %s\n", e.what());
-	} catch (...) {
+	}
+	catch (...) {
 		fprintf(stderr, "Unknown error on PostgreSQL::save\n");
 	}
 	return modified;
@@ -171,7 +165,7 @@ void CV2::eraseNetwork(const uint64_t networkId)
 	char tmp2[24];
 	waitForReady();
 	Utils::hex(networkId, tmp2);
-	std::pair<nlohmann::json,bool> tmp;
+	std::pair<nlohmann::json, bool> tmp;
 	tmp.first["id"] = tmp2;
 	tmp.first["objtype"] = "_delete_network";
 	tmp.second = true;
@@ -185,7 +179,7 @@ void CV2::eraseMember(const uint64_t networkId, const uint64_t memberId)
 	fprintf(stderr, "PostgreSQL::eraseMember\n");
 	char tmp2[24];
 	waitForReady();
-	std::pair<nlohmann::json,bool> tmp, nw;
+	std::pair<nlohmann::json, bool> tmp, nw;
 	Utils::hex(networkId, tmp2);
 	tmp.first["nwid"] = tmp2;
 	Utils::hex(memberId, tmp2);
@@ -197,10 +191,10 @@ void CV2::eraseMember(const uint64_t networkId, const uint64_t memberId)
 	_memberChanged(tmp.first, nullJson, true);
 }
 
-void CV2::nodeIsOnline(const uint64_t networkId, const uint64_t memberId, const InetAddress &physicalAddress, const char *osArch)
+void CV2::nodeIsOnline(const uint64_t networkId, const uint64_t memberId, const InetAddress& physicalAddress, const char* osArch)
 {
 	std::lock_guard<std::mutex> l(_lastOnline_l);
-	NodeOnlineRecord &i = _lastOnline[std::pair<uint64_t,uint64_t>(networkId, memberId)];
+	NodeOnlineRecord& i = _lastOnline[std::pair<uint64_t, uint64_t>(networkId, memberId)];
 	i.lastSeen = OSUtils::now();
 	if (physicalAddress) {
 		i.physicalAddress = physicalAddress;
@@ -208,19 +202,19 @@ void CV2::nodeIsOnline(const uint64_t networkId, const uint64_t memberId, const 
 	i.osArch = std::string(osArch);
 }
 
-void CV2::nodeIsOnline(const uint64_t networkId, const uint64_t memberId, const InetAddress &physicalAddress)
+void CV2::nodeIsOnline(const uint64_t networkId, const uint64_t memberId, const InetAddress& physicalAddress)
 {
 	this->nodeIsOnline(networkId, memberId, physicalAddress, "unknown/unknown");
 }
 
-AuthInfo CV2::getSSOAuthInfo(const nlohmann::json &member, const std::string &redirectURL)
+AuthInfo CV2::getSSOAuthInfo(const nlohmann::json& member, const std::string& redirectURL)
 {
-    // TODO: Redo this for CV2
+	// TODO: Redo this for CV2
 
 	Metrics::db_get_sso_info++;
 	// NONCE is just a random character string.  no semantic meaning
 	// state = HMAC SHA384 of Nonce based on shared sso key
-	// 
+	//
 	// need nonce timeout in database? make sure it's used within X time
 	// X is 5 minutes for now.  Make configurable later?
 	//
@@ -228,162 +222,166 @@ AuthInfo CV2::getSSOAuthInfo(const nlohmann::json &member, const std::string &re
 	std::string networkId = member["nwid"];
 	std::string memberId = member["id"];
 
-
-	char authenticationURL[4096] = {0};
+	char authenticationURL[4096] = { 0 };
 	AuthInfo info;
 	info.enabled = true;
 
-	//if (memberId == "a10dccea52" && networkId == "8056c2e21c24673d") {
+	// if (memberId == "a10dccea52" && networkId == "8056c2e21c24673d") {
 	//	fprintf(stderr, "invalid authinfo for grant's machine\n");
 	//	info.version=1;
 	//	return info;
-	//}
-	// fprintf(stderr, "PostgreSQL::updateMemberOnLoad: %s-%s\n", networkId.c_str(), memberId.c_str());
+	// }
+	//  fprintf(stderr, "PostgreSQL::updateMemberOnLoad: %s-%s\n", networkId.c_str(), memberId.c_str());
 	std::shared_ptr<PostgresConnection> c;
 	try {
-// 		c = _pool->borrow();
-// 		pqxx::work w(*c->c);
+		// 		c = _pool->borrow();
+		// 		pqxx::work w(*c->c);
 
-// 		char nonceBytes[16] = {0};
-// 		std::string nonce = "";
+		// 		char nonceBytes[16] = {0};
+		// 		std::string nonce = "";
 
-// 		// check if the member exists first.
-// 		pqxx::row count = w.exec_params1("SELECT count(id) FROM ztc_member WHERE id = $1 AND network_id = $2 AND deleted = false", memberId, networkId);
-// 		if (count[0].as<int>() == 1) {
-// 			// get active nonce, if exists.
-// 			pqxx::result r = w.exec_params("SELECT nonce FROM ztc_sso_expiry "
-// 				"WHERE network_id = $1 AND member_id = $2 "
-// 				"AND ((NOW() AT TIME ZONE 'UTC') <= authentication_expiry_time) AND ((NOW() AT TIME ZONE 'UTC') <= nonce_expiration)",
-// 				networkId, memberId);
+		// 		// check if the member exists first.
+		// 		pqxx::row count = w.exec_params1("SELECT count(id) FROM ztc_member WHERE id = $1 AND network_id = $2 AND deleted = false", memberId, networkId);
+		// 		if (count[0].as<int>() == 1) {
+		// 			// get active nonce, if exists.
+		// 			pqxx::result r = w.exec_params("SELECT nonce FROM ztc_sso_expiry "
+		// 				"WHERE network_id = $1 AND member_id = $2 "
+		// 				"AND ((NOW() AT TIME ZONE 'UTC') <= authentication_expiry_time) AND ((NOW() AT TIME ZONE 'UTC') <= nonce_expiration)",
+		// 				networkId, memberId);
 
-// 			if (r.size() == 0) {
-// 				// no active nonce.
-// 				// find an unused nonce, if one exists.
-// 				pqxx::result r = w.exec_params("SELECT nonce FROM ztc_sso_expiry "
-// 					"WHERE network_id = $1 AND member_id = $2 "
-// 					"AND authentication_expiry_time IS NULL AND ((NOW() AT TIME ZONE 'UTC') <= nonce_expiration)",
-// 					networkId, memberId);
+		// 			if (r.size() == 0) {
+		// 				// no active nonce.
+		// 				// find an unused nonce, if one exists.
+		// 				pqxx::result r = w.exec_params("SELECT nonce FROM ztc_sso_expiry "
+		// 					"WHERE network_id = $1 AND member_id = $2 "
+		// 					"AND authentication_expiry_time IS NULL AND ((NOW() AT TIME ZONE 'UTC') <= nonce_expiration)",
+		// 					networkId, memberId);
 
-// 				if (r.size() == 1) {
-// 					// we have an existing nonce.  Use it
-// 					nonce = r.at(0)[0].as<std::string>();
-// 					Utils::unhex(nonce.c_str(), nonceBytes, sizeof(nonceBytes));
-// 				} else if (r.empty()) {
-// 					// create a nonce
-// 					Utils::getSecureRandom(nonceBytes, 16);
-// 					char nonceBuf[64] = {0};
-// 					Utils::hex(nonceBytes, sizeof(nonceBytes), nonceBuf);
-// 					nonce = std::string(nonceBuf);
+		// 				if (r.size() == 1) {
+		// 					// we have an existing nonce.  Use it
+		// 					nonce = r.at(0)[0].as<std::string>();
+		// 					Utils::unhex(nonce.c_str(), nonceBytes, sizeof(nonceBytes));
+		// 				} else if (r.empty()) {
+		// 					// create a nonce
+		// 					Utils::getSecureRandom(nonceBytes, 16);
+		// 					char nonceBuf[64] = {0};
+		// 					Utils::hex(nonceBytes, sizeof(nonceBytes), nonceBuf);
+		// 					nonce = std::string(nonceBuf);
 
-// 					pqxx::result ir = w.exec_params0("INSERT INTO ztc_sso_expiry "
-// 						"(nonce, nonce_expiration, network_id, member_id) VALUES "
-// 						"($1, TO_TIMESTAMP($2::double precision/1000), $3, $4)",
-// 						nonce, OSUtils::now() + 300000, networkId, memberId);
+		// 					pqxx::result ir = w.exec_params0("INSERT INTO ztc_sso_expiry "
+		// 						"(nonce, nonce_expiration, network_id, member_id) VALUES "
+		// 						"($1, TO_TIMESTAMP($2::double precision/1000), $3, $4)",
+		// 						nonce, OSUtils::now() + 300000, networkId, memberId);
 
-// 					w.commit();
-// 				}  else {
-// 					// > 1 ?!?  Thats an error!
-// 					fprintf(stderr, "> 1 unused nonce!\n");
-// 					exit(6);
-// 				}
-// 			} else if (r.size() == 1) {
-// 				nonce = r.at(0)[0].as<std::string>();
-// 				Utils::unhex(nonce.c_str(), nonceBytes, sizeof(nonceBytes));
-// 			} else {
-// 				// more than 1 nonce in use?  Uhhh...
-// 				fprintf(stderr, "> 1 nonce in use for network member?!?\n");
-// 				exit(7);
-// 			}
+		// 					w.commit();
+		// 				}  else {
+		// 					// > 1 ?!?  Thats an error!
+		// 					fprintf(stderr, "> 1 unused nonce!\n");
+		// 					exit(6);
+		// 				}
+		// 			} else if (r.size() == 1) {
+		// 				nonce = r.at(0)[0].as<std::string>();
+		// 				Utils::unhex(nonce.c_str(), nonceBytes, sizeof(nonceBytes));
+		// 			} else {
+		// 				// more than 1 nonce in use?  Uhhh...
+		// 				fprintf(stderr, "> 1 nonce in use for network member?!?\n");
+		// 				exit(7);
+		// 			}
 
-// 			r = w.exec_params(
-// 				"SELECT oc.client_id, oc.authorization_endpoint, oc.issuer, oc.provider, oc.sso_impl_version "
-// 				"FROM ztc_network AS n "
-// 				"INNER JOIN ztc_org o "
-// 				"  ON o.owner_id = n.owner_id "
-// 			    "LEFT OUTER JOIN ztc_network_oidc_config noc "
-// 				"  ON noc.network_id = n.id "
-// 				"LEFT OUTER JOIN ztc_oidc_config oc "
-// 				"  ON noc.client_id = oc.client_id AND oc.org_id = o.org_id "
-// 				"WHERE n.id = $1 AND n.sso_enabled = true", networkId);
-		
-// 			std::string client_id = "";
-// 			std::string authorization_endpoint = "";
-// 			std::string issuer = "";
-// 			std::string provider = "";
-// 			uint64_t sso_version = 0;
+		// 			r = w.exec_params(
+		// 				"SELECT oc.client_id, oc.authorization_endpoint, oc.issuer, oc.provider, oc.sso_impl_version "
+		// 				"FROM ztc_network AS n "
+		// 				"INNER JOIN ztc_org o "
+		// 				"  ON o.owner_id = n.owner_id "
+		// 			    "LEFT OUTER JOIN ztc_network_oidc_config noc "
+		// 				"  ON noc.network_id = n.id "
+		// 				"LEFT OUTER JOIN ztc_oidc_config oc "
+		// 				"  ON noc.client_id = oc.client_id AND oc.org_id = o.org_id "
+		// 				"WHERE n.id = $1 AND n.sso_enabled = true", networkId);
 
-// 			if (r.size() == 1) {
-// 				client_id = r.at(0)[0].as<std::optional<std::string>>().value_or("");
-// 				authorization_endpoint = r.at(0)[1].as<std::optional<std::string>>().value_or("");
-// 				issuer = r.at(0)[2].as<std::optional<std::string>>().value_or("");
-// 				provider = r.at(0)[3].as<std::optional<std::string>>().value_or("");
-// 				sso_version = r.at(0)[4].as<std::optional<uint64_t>>().value_or(1);
-// 			} else if (r.size() > 1) {
-// 				fprintf(stderr, "ERROR: More than one auth endpoint for an organization?!?!? NetworkID: %s\n", networkId.c_str());
-// 			} else {
-// 				fprintf(stderr, "No client or auth endpoint?!?\n");
-// 			}
-		
-// 			info.version = sso_version;
-			
-// 			// no catch all else because we don't actually care if no records exist here. just continue as normal.
-// 			if ((!client_id.empty())&&(!authorization_endpoint.empty())) {
-				
-// 				uint8_t state[48];
-// 				HMACSHA384(_ssoPsk, nonceBytes, sizeof(nonceBytes), state);
-// 				char state_hex[256];
-// 				Utils::hex(state, 48, state_hex);
-				
-// 				if (info.version == 0) {
-// 					char url[2048] = {0};
-// 					OSUtils::ztsnprintf(url, sizeof(authenticationURL),
-// 						"%s?response_type=id_token&response_mode=form_post&scope=openid+email+profile&redirect_uri=%s&nonce=%s&state=%s&client_id=%s",
-// 						authorization_endpoint.c_str(),
-// 						url_encode(redirectURL).c_str(),
-// 						nonce.c_str(),
-// 						state_hex,
-// 						client_id.c_str());
-// 					info.authenticationURL = std::string(url);
-// 				} else if (info.version == 1) {
-// 					info.ssoClientID = client_id;
-// 					info.issuerURL = issuer;
-// 					info.ssoProvider = provider;
-// 					info.ssoNonce = nonce;
-// 					info.ssoState = std::string(state_hex) + "_" +networkId;
-// 					info.centralAuthURL = redirectURL;
-// #ifdef ZT_DEBUG
-// 					fprintf(
-// 						stderr,
-// 						"ssoClientID: %s\nissuerURL: %s\nssoNonce: %s\nssoState: %s\ncentralAuthURL: %s\nprovider: %s\n",
-// 						info.ssoClientID.c_str(),
-// 						info.issuerURL.c_str(),
-// 						info.ssoNonce.c_str(),
-// 						info.ssoState.c_str(),
-// 						info.centralAuthURL.c_str(),
-// 						provider.c_str());
-// #endif
-// 				}
-// 			}  else {
-// 				fprintf(stderr, "client_id: %s\nauthorization_endpoint: %s\n", client_id.c_str(), authorization_endpoint.c_str());
-// 			}
-// 		}
+		// 			std::string client_id = "";
+		// 			std::string authorization_endpoint = "";
+		// 			std::string issuer = "";
+		// 			std::string provider = "";
+		// 			uint64_t sso_version = 0;
 
-// 		_pool->unborrow(c);
-	} catch (std::exception &e) {
+		// 			if (r.size() == 1) {
+		// 				client_id = r.at(0)[0].as<std::optional<std::string>>().value_or("");
+		// 				authorization_endpoint = r.at(0)[1].as<std::optional<std::string>>().value_or("");
+		// 				issuer = r.at(0)[2].as<std::optional<std::string>>().value_or("");
+		// 				provider = r.at(0)[3].as<std::optional<std::string>>().value_or("");
+		// 				sso_version = r.at(0)[4].as<std::optional<uint64_t>>().value_or(1);
+		// 			} else if (r.size() > 1) {
+		// 				fprintf(stderr, "ERROR: More than one auth endpoint for an organization?!?!? NetworkID: %s\n", networkId.c_str());
+		// 			} else {
+		// 				fprintf(stderr, "No client or auth endpoint?!?\n");
+		// 			}
+
+		// 			info.version = sso_version;
+
+		// 			// no catch all else because we don't actually care if no records exist here. just continue as normal.
+		// 			if ((!client_id.empty())&&(!authorization_endpoint.empty())) {
+
+		// 				uint8_t state[48];
+		// 				HMACSHA384(_ssoPsk, nonceBytes, sizeof(nonceBytes), state);
+		// 				char state_hex[256];
+		// 				Utils::hex(state, 48, state_hex);
+
+		// 				if (info.version == 0) {
+		// 					char url[2048] = {0};
+		// 					OSUtils::ztsnprintf(url, sizeof(authenticationURL),
+		// 						"%s?response_type=id_token&response_mode=form_post&scope=openid+email+profile&redirect_uri=%s&nonce=%s&state=%s&client_id=%s",
+		// 						authorization_endpoint.c_str(),
+		// 						url_encode(redirectURL).c_str(),
+		// 						nonce.c_str(),
+		// 						state_hex,
+		// 						client_id.c_str());
+		// 					info.authenticationURL = std::string(url);
+		// 				} else if (info.version == 1) {
+		// 					info.ssoClientID = client_id;
+		// 					info.issuerURL = issuer;
+		// 					info.ssoProvider = provider;
+		// 					info.ssoNonce = nonce;
+		// 					info.ssoState = std::string(state_hex) + "_" +networkId;
+		// 					info.centralAuthURL = redirectURL;
+		// #ifdef ZT_DEBUG
+		// 					fprintf(
+		// 						stderr,
+		// 						"ssoClientID: %s\nissuerURL: %s\nssoNonce: %s\nssoState: %s\ncentralAuthURL: %s\nprovider: %s\n",
+		// 						info.ssoClientID.c_str(),
+		// 						info.issuerURL.c_str(),
+		// 						info.ssoNonce.c_str(),
+		// 						info.ssoState.c_str(),
+		// 						info.centralAuthURL.c_str(),
+		// 						provider.c_str());
+		// #endif
+		// 				}
+		// 			}  else {
+		// 				fprintf(stderr, "client_id: %s\nauthorization_endpoint: %s\n", client_id.c_str(), authorization_endpoint.c_str());
+		// 			}
+		// 		}
+
+		// 		_pool->unborrow(c);
+	}
+	catch (std::exception& e) {
 		fprintf(stderr, "ERROR: Error updating member on load for network %s: %s\n", networkId.c_str(), e.what());
 	}
 
-	return info; //std::string(authenticationURL);
+	return info;   // std::string(authenticationURL);
 }
 
 void CV2::initializeNetworks()
-{	fprintf(stderr, "Initializing networks...\n");
-	
-    try {
+{
+	fprintf(stderr, "Initializing networks...\n");
+
+	try {
 		char qbuf[2048];
-		sprintf(qbuf, "SELECT id, name, configuration , (EXTRACT(EPOCH FROM creation_time AT TIME ZONE 'UTC')*1000)::bigint, "
+		sprintf(
+			qbuf,
+			"SELECT id, name, configuration , (EXTRACT(EPOCH FROM creation_time AT TIME ZONE 'UTC')*1000)::bigint, "
 			"(EXTRACT(EPOCH FROM last_modified AT TIME ZONE 'UTC')*1000)::bigint, revision "
-			"FROM networks_ctl WHERE controller_id = '%s'", _myAddressStr.c_str());
+			"FROM networks_ctl WHERE controller_id = '%s'",
+			_myAddressStr.c_str());
 
 		auto c = _pool->borrow();
 		pqxx::work w(*c->c);
@@ -391,13 +389,19 @@ void CV2::initializeNetworks()
 		fprintf(stderr, "Load networks from psql...\n");
 		auto stream = pqxx::stream_from::query(w, qbuf);
 		std::tuple<
-			  std::string 					// network ID
-			, std::optional<std::string>	// name
-			, std::string	// configuration
-			, std::optional<uint64_t>		// creation_time
-			, std::optional<uint64_t>		// last_modified
-			, std::optional<uint64_t>		// revision
-		> row;
+			std::string	  // network ID
+			,
+			std::optional<std::string>	 // name
+			,
+			std::string	  // configuration
+			,
+			std::optional<uint64_t>	  // creation_time
+			,
+			std::optional<uint64_t>	  // last_modified
+			,
+			std::optional<uint64_t>	  // revision
+			>
+			row;
 		uint64_t count = 0;
 		uint64_t total = 0;
 		while (stream >> row) {
@@ -432,13 +436,15 @@ void CV2::initializeNetworks()
 			config["tags"] = cfgtmp["tags"].is_array() ? cfgtmp["tags"] : json::array();
 			if (cfgtmp["v4AssignMode"].is_object()) {
 				config["v4AssignMode"] = cfgtmp["v4AssignMode"];
-			} else {
+			}
+			else {
 				config["v4AssignMode"] = json::object();
 				config["v4AssignMode"]["zt"] = true;
 			}
 			if (cfgtmp["v6AssignMode"].is_object()) {
 				config["v6AssignMode"] = cfgtmp["v6AssignMode"];
-			} else {
+			}
+			else {
 				config["v6AssignMode"] = json::object();
 				config["v6AssignMode"]["zt"] = true;
 				config["v6AssignMode"]["6plane"] = true;
@@ -450,11 +456,12 @@ void CV2::initializeNetworks()
 			config["clientId"] = cfgtmp["clientId"].is_string() ? cfgtmp["clientId"].get<std::string>() : "";
 			config["authorizationEndpoint"] = cfgtmp["authorizationEndpoint"].is_string() ? cfgtmp["authorizationEndpoint"].get<std::string>() : nullptr;
 			config["provider"] = cfgtmp["ssoProvider"].is_string() ? cfgtmp["ssoProvider"].get<std::string>() : "";
-			if (!cfgtmp["dns"].is_object()) {
+			if (! cfgtmp["dns"].is_object()) {
 				cfgtmp["dns"] = json::object();
 				cfgtmp["dns"]["domain"] = "";
-				cfgtmp["dns"]["servers"] = json::array();	
-			} else {
+				cfgtmp["dns"]["servers"] = json::array();
+			}
+			else {
 				config["dns"] = cfgtmp["dns"];
 			}
 			config["ipAssignmentPools"] = cfgtmp["ipAssignmentPools"].is_array() ? cfgtmp["ipAssignmentPools"] : json::array();
@@ -464,11 +471,12 @@ void CV2::initializeNetworks()
 			_networkChanged(empty, config, false);
 
 			auto end = std::chrono::high_resolution_clock::now();
-			auto dur = std::chrono::duration_cast<std::chrono::microseconds>(end - start);;
+			auto dur = std::chrono::duration_cast<std::chrono::microseconds>(end - start);
+			;
 			total += dur.count();
 			++count;
 			if (count > 0 && count % 10000 == 0) {
-				fprintf(stderr, "Averaging %lu us per network\n", (total/count));
+				fprintf(stderr, "Averaging %lu us per network\n", (total / count));
 			}
 		}
 
@@ -476,27 +484,29 @@ void CV2::initializeNetworks()
 		_pool->unborrow(c);
 		fprintf(stderr, "done.\n");
 
-        if (++this->_ready == 2) {
+		if (++this->_ready == 2) {
 			if (_waitNoticePrinted) {
-				fprintf(stderr,"[%s] NOTICE: %.10llx controller PostgreSQL data download complete." ZT_EOL_S,_timestr(),(unsigned long long)_myAddress.toInt());
+				fprintf(stderr, "[%s] NOTICE: %.10llx controller PostgreSQL data download complete." ZT_EOL_S, _timestr(), (unsigned long long)_myAddress.toInt());
 			}
 			_readyLock.unlock();
 		}
-        fprintf(stderr, "network init done\n");
-    } catch (std::exception &e) {
+		fprintf(stderr, "network init done\n");
+	}
+	catch (std::exception& e) {
 		fprintf(stderr, "ERROR: Error initializing networks: %s\n", e.what());
 		std::this_thread::sleep_for(std::chrono::milliseconds(5000));
 		exit(-1);
 	}
-}   
+}
 
 void CV2::initializeMembers()
 {
-    std::string memberId;
+	std::string memberId;
 	std::string networkId;
-    try {
+	try {
 		char qbuf[2048];
-		sprintf(qbuf,
+		sprintf(
+			qbuf,
 			"SELECT nm.device_id, nm.network_id, nm.authorized, nm.active_bridge, nm.ip_assignments, nm.no_auto_assign_ips, "
 			"nm.sso_exempt, (EXTRACT(EPOCH FROM nm.authentication_expiry_time AT TIME ZONE 'UTC')*1000)::bigint, "
 			"(EXTRACT(EPOCH FROM nm.creation_time AT TIME ZONE 'UTC')*1000)::bigint, nm.identity, "
@@ -506,31 +516,49 @@ void CV2::initializeMembers()
 			"FROM network_memberships_ctl nm "
 			"INNER JOIN networks_ctl n "
 			"  ON nm.network_id = n.id "
-			"WHERE n.controller_id = '%s'", _myAddressStr.c_str());
-		
+			"WHERE n.controller_id = '%s'",
+			_myAddressStr.c_str());
+
 		auto c = _pool->borrow();
 		pqxx::work w(*c->c);
 		fprintf(stderr, "Load members from psql...\n");
 		auto stream = pqxx::stream_from::query(w, qbuf);
 		std::tuple<
-			  std::string 								// device ID
-			, std::string 								// network ID
-			, bool										// authorized
-			, std::optional<bool>						// active_bridge
-			, std::optional<std::string>				// ip_assignments
-			, std::optional<bool>						// no_auto_assign_ips
-			, std::optional<bool>						// sso_exempt
-			, std::optional<uint64_t>					// authentication_expiry_time
-			, std::optional<uint64_t>					// creation_time
-			, std::optional<std::string>				// identity
-			, std::optional<uint64_t>					// last_authorized_time
-			, std::optional<uint64_t>					// last_deauthorized_time
-			, std::optional<int32_t>					// remote_trace_level
-			, std::optional<std::string>				// remote_trace_target
-			, std::optional<uint64_t>					// revision
-			, std::optional<std::string> 				// capabilities			
-			, std::optional<std::string>				// tags
-		> row;
+			std::string	  // device ID
+			,
+			std::string	  // network ID
+			,
+			bool   // authorized
+			,
+			std::optional<bool>	  // active_bridge
+			,
+			std::optional<std::string>	 // ip_assignments
+			,
+			std::optional<bool>	  // no_auto_assign_ips
+			,
+			std::optional<bool>	  // sso_exempt
+			,
+			std::optional<uint64_t>	  // authentication_expiry_time
+			,
+			std::optional<uint64_t>	  // creation_time
+			,
+			std::optional<std::string>	 // identity
+			,
+			std::optional<uint64_t>	  // last_authorized_time
+			,
+			std::optional<uint64_t>	  // last_deauthorized_time
+			,
+			std::optional<int32_t>	 // remote_trace_level
+			,
+			std::optional<std::string>	 // remote_trace_target
+			,
+			std::optional<uint64_t>	  // revision
+			,
+			std::optional<std::string>	 // capabilities
+			,
+			std::optional<std::string>	 // tags
+			>
+			row;
 
 		uint64_t count = 0;
 		uint64_t total = 0;
@@ -597,11 +625,11 @@ void CV2::initializeMembers()
 			total += dur.count();
 			++count;
 			if (count > 0 && count % 10000 == 0) {
-				fprintf(stderr, "Averaging %lu us per member\n", (total/count));
+				fprintf(stderr, "Averaging %lu us per member\n", (total / count));
 			}
 		}
 		if (count > 0) {
-			fprintf(stderr, "Took %lu us per member to load\n", (total/count));
+			fprintf(stderr, "Took %lu us per member to load\n", (total / count));
 		}
 
 		stream.complete();
@@ -609,14 +637,15 @@ void CV2::initializeMembers()
 		_pool->unborrow(c);
 		fprintf(stderr, "done.\n");
 
-        if (++this->_ready == 2) {
+		if (++this->_ready == 2) {
 			if (_waitNoticePrinted) {
-				fprintf(stderr,"[%s] NOTICE: %.10llx controller PostgreSQL data download complete." ZT_EOL_S,_timestr(),(unsigned long long)_myAddress.toInt());
+				fprintf(stderr, "[%s] NOTICE: %.10llx controller PostgreSQL data download complete." ZT_EOL_S, _timestr(), (unsigned long long)_myAddress.toInt());
 			}
 			_readyLock.unlock();
 		}
-        fprintf(stderr, "member init done\n");
-    } catch (std::exception &e) {
+		fprintf(stderr, "member init done\n");
+	}
+	catch (std::exception& e) {
 		fprintf(stderr, "ERROR: Error initializing member: %s-%s %s\n", networkId.c_str(), memberId.c_str(), e.what());
 		exit(-1);
 	}
@@ -624,100 +653,109 @@ void CV2::initializeMembers()
 
 void CV2::heartbeat()
 {
-    char publicId[1024];
+	char publicId[1024];
 	char hostnameTmp[1024];
-	_myId.toString(false,publicId);
-	if (gethostname(hostnameTmp, sizeof(hostnameTmp))!= 0) {
+	_myId.toString(false, publicId);
+	if (gethostname(hostnameTmp, sizeof(hostnameTmp)) != 0) {
 		hostnameTmp[0] = (char)0;
-	} else {
+	}
+	else {
 		for (int i = 0; i < (int)sizeof(hostnameTmp); ++i) {
-			if ((hostnameTmp[i] == '.')||(hostnameTmp[i] == 0)) {
+			if ((hostnameTmp[i] == '.') || (hostnameTmp[i] == 0)) {
 				hostnameTmp[i] = (char)0;
 				break;
 			}
 		}
 	}
-	const char *controllerId = _myAddressStr.c_str();
-	const char *publicIdentity = publicId;
-	const char *hostname = hostnameTmp;
+	const char* controllerId = _myAddressStr.c_str();
+	const char* publicIdentity = publicId;
+	const char* hostname = hostnameTmp;
 
-    while (_run == 1) {
-        auto c = _pool->borrow();
-        int64_t ts = OSUtils::now();
+	while (_run == 1) {
+		auto c = _pool->borrow();
+		int64_t ts = OSUtils::now();
 
-        if (c->c) {
-            std::string major = std::to_string(ZEROTIER_ONE_VERSION_MAJOR);
-            std::string minor = std::to_string(ZEROTIER_ONE_VERSION_MINOR);
-            std::string rev = std::to_string(ZEROTIER_ONE_VERSION_REVISION);
-            std::string version = major + "." + minor + "." + rev;
-            std::string versionStr = "v" + version;
+		if (c->c) {
+			std::string major = std::to_string(ZEROTIER_ONE_VERSION_MAJOR);
+			std::string minor = std::to_string(ZEROTIER_ONE_VERSION_MINOR);
+			std::string rev = std::to_string(ZEROTIER_ONE_VERSION_REVISION);
+			std::string version = major + "." + minor + "." + rev;
+			std::string versionStr = "v" + version;
 
-            try {
-                pqxx::work w{*c->c};
-                w.exec_params0("INSERT INTO controllers_ctl (id, hostname, last_heartbeat, public_identity, version) VALUES "
-                    "($1, $2, TO_TIMESTAMP($3::double precision/1000), $4, $5) "
-                    "ON CONFLICT (id) DO UPDATE SET hostname = EXCLUDED.hostname, last_heartbeat = EXCLUDED.last_heartbeat, "
-                    "public_identity = EXCLUDED.public_identity, version = EXCLUDED.version",
-                    controllerId, hostname, ts, publicIdentity, versionStr);
-                w.commit();
-            } catch (std::exception &e) {
-                fprintf(stderr, "ERROR: Error in heartbeat: %s\n", e.what());
-                continue;
-            } catch (...) {
-                fprintf(stderr, "ERROR: Unknown error in heartbeat\n");
-                continue;
-            }
-        }
+			try {
+				pqxx::work w { *c->c };
+				w.exec_params0(
+					"INSERT INTO controllers_ctl (id, hostname, last_heartbeat, public_identity, version) VALUES "
+					"($1, $2, TO_TIMESTAMP($3::double precision/1000), $4, $5) "
+					"ON CONFLICT (id) DO UPDATE SET hostname = EXCLUDED.hostname, last_heartbeat = EXCLUDED.last_heartbeat, "
+					"public_identity = EXCLUDED.public_identity, version = EXCLUDED.version",
+					controllerId,
+					hostname,
+					ts,
+					publicIdentity,
+					versionStr);
+				w.commit();
+			}
+			catch (std::exception& e) {
+				fprintf(stderr, "ERROR: Error in heartbeat: %s\n", e.what());
+				continue;
+			}
+			catch (...) {
+				fprintf(stderr, "ERROR: Unknown error in heartbeat\n");
+				continue;
+			}
+		}
 
-        _pool->unborrow(c);
+		_pool->unborrow(c);
 
-        std::this_thread::sleep_for(std::chrono::seconds(1));
-    }
-    fprintf(stderr, "Exited heartbeat thread\n");
+		std::this_thread::sleep_for(std::chrono::seconds(1));
+	}
+	fprintf(stderr, "Exited heartbeat thread\n");
 }
 
-void CV2::membersDbWatcher() {
-    auto c = _pool->borrow();
+void CV2::membersDbWatcher()
+{
+	auto c = _pool->borrow();
 
 	std::string stream = "member_" + _myAddressStr;
 
 	fprintf(stderr, "Listening to member stream: %s\n", stream.c_str());
 	MemberNotificationReceiver m(this, *c->c, stream);
 
-	while(_run == 1) {
+	while (_run == 1) {
 		c->c->await_notification(5, 0);
 	}
 
 	_pool->unborrow(c);
 
-    fprintf(stderr, "Exited membersDbWatcher\n");
+	fprintf(stderr, "Exited membersDbWatcher\n");
 }
 
 void CV2::networksDbWatcher()
 {
-    std::string stream = "network_" + _myAddressStr;
+	std::string stream = "network_" + _myAddressStr;
 
 	fprintf(stderr, "Listening to member stream: %s\n", stream.c_str());
-	
+
 	auto c = _pool->borrow();
 
 	NetworkNotificationReceiver n(this, *c->c, stream);
 
-	while(_run == 1) {
-		c->c->await_notification(5,0);
+	while (_run == 1) {
+		c->c->await_notification(5, 0);
 	}
 
-    _pool->unborrow(c);
-    fprintf(stderr, "Exited networksDbWatcher\n");
+	_pool->unborrow(c);
+	fprintf(stderr, "Exited networksDbWatcher\n");
 }
 
 void CV2::commitThread()
 {
 	fprintf(stderr, "%s: commitThread start\n", _myAddressStr.c_str());
-	std::pair<nlohmann::json,bool> qitem;
-	while(_commitQueue.get(qitem)&&(_run == 1)) {
-		//fprintf(stderr, "commitThread tick\n");
-		if (!qitem.first.is_object()) {
+	std::pair<nlohmann::json, bool> qitem;
+	while (_commitQueue.get(qitem) && (_run == 1)) {
+		// fprintf(stderr, "commitThread tick\n");
+		if (! qitem.first.is_object()) {
 			fprintf(stderr, "not an object\n");
 			continue;
 		}
@@ -725,19 +763,20 @@ void CV2::commitThread()
 		std::shared_ptr<PostgresConnection> c;
 		try {
 			c = _pool->borrow();
-		} catch (std::exception &e) {
+		}
+		catch (std::exception& e) {
 			fprintf(stderr, "ERROR: %s\n", e.what());
 			continue;
 		}
 
-		if (!c) {
+		if (! c) {
 			fprintf(stderr, "Error getting database connection\n");
 			continue;
 		}
-		
+
 		Metrics::pgsql_commit_ticks++;
 		try {
-			nlohmann::json &config = (qitem.first);
+			nlohmann::json& config = (qitem.first);
 			const std::string objtype = config["objtype"];
 			if (objtype == "member") {
 				// fprintf(stderr, "%s: commitThread: member\n", _myAddressStr.c_str());
@@ -745,15 +784,15 @@ void CV2::commitThread()
 				std::string networkId;
 				try {
 					pqxx::work w(*c->c);
-					
+
 					memberId = config["id"];
 					networkId = config["nwid"];
 
 					std::string target = "NULL";
-					if (!config["remoteTraceTarget"].is_null()) {
+					if (! config["remoteTraceTarget"].is_null()) {
 						target = config["remoteTraceTarget"];
 					}
-					
+
 					pqxx::row nwrow = w.exec_params1("SELECT COUNT(id) FROM networks WHERE id = $1", networkId);
 					int nwcount = nwrow[0].as<int>();
 
@@ -793,7 +832,7 @@ void CV2::commitThread()
 						networkId,
 						(bool)config["authorized"],
 						(bool)config["activeBridge"],
-						config["ipAssignments"].get<std::vector<std::string>>(),
+						config["ipAssignments"].get<std::vector<std::string> >(),
 						(bool)config["noAutoAssignIps"],
 						(bool)config["ssoExempt"],
 						(uint64_t)config["authenticationExpiryTime"],
@@ -843,29 +882,33 @@ void CV2::commitThread()
 						get(nwidInt, nwOrig, memberidInt, memOrig);
 
 						_memberChanged(memOrig, memNew, qitem.second);
-					} else {
+					}
+					else {
 						fprintf(stderr, "%s: Can't notify of change.  Error parsing nwid or memberid: %llu-%llu\n", _myAddressStr.c_str(), (unsigned long long)nwidInt, (unsigned long long)memberidInt);
 					}
-				} catch (pqxx::data_exception &e) {
+				}
+				catch (pqxx::data_exception& e) {
 					std::string cfgDump = OSUtils::jsonDump(config, 2);
 					fprintf(stderr, "Member save %s-%s: %s\n", networkId.c_str(), memberId.c_str(), cfgDump.c_str());
-					
-					const pqxx::sql_error *s=dynamic_cast<const pqxx::sql_error *>(&e);
+
+					const pqxx::sql_error* s = dynamic_cast<const pqxx::sql_error*>(&e);
 					fprintf(stderr, "%s ERROR: Error updating member: %s\n", _myAddressStr.c_str(), e.what());
 					if (s) {
 						fprintf(stderr, "%s ERROR: SQL error: %s\n", _myAddressStr.c_str(), s->query().c_str());
 					}
-				} catch (std::exception &e) {
+				}
+				catch (std::exception& e) {
 					std::string cfgDump = OSUtils::jsonDump(config, 2);
 					fprintf(stderr, "%s ERROR: Error updating member %s-%s: %s\njsonDump: %s\n", _myAddressStr.c_str(), networkId.c_str(), memberId.c_str(), e.what(), cfgDump.c_str());
 				}
-			} else if (objtype == "network") {
+			}
+			else if (objtype == "network") {
 				try {
 					// fprintf(stderr, "%s: commitThread: network\n", _myAddressStr.c_str());
 					pqxx::work w(*c->c);
 
 					std::string id = config["id"];
-					
+
 					// network must already exist
 					pqxx::result res = w.exec_params0(
 						"INSERT INTO networks_ctl (id, name, configuration, controller_id, revision) "
@@ -876,8 +919,7 @@ void CV2::commitThread()
 						OSUtils::jsonString(config["name"], ""),
 						OSUtils::jsonDump(config, -1),
 						_myAddressStr,
-						((uint64_t)config["revision"])
-					);
+						((uint64_t)config["revision"]));
 
 					w.commit();
 
@@ -889,34 +931,40 @@ void CV2::commitThread()
 						get(nwidInt, nwOrig);
 
 						_networkChanged(nwOrig, nwNew, qitem.second);
-					} else {
+					}
+					else {
 						fprintf(stderr, "%s: Can't notify network changed: %llu\n", _myAddressStr.c_str(), (unsigned long long)nwidInt);
 					}
-				} catch (pqxx::data_exception &e) {
-					const pqxx::sql_error *s=dynamic_cast<const pqxx::sql_error *>(&e);
+				}
+				catch (pqxx::data_exception& e) {
+					const pqxx::sql_error* s = dynamic_cast<const pqxx::sql_error*>(&e);
 					fprintf(stderr, "%s ERROR: Error updating network: %s\n", _myAddressStr.c_str(), e.what());
 					if (s) {
 						fprintf(stderr, "%s ERROR: SQL error: %s\n", _myAddressStr.c_str(), s->query().c_str());
 					}
-				} catch (std::exception &e) {
+				}
+				catch (std::exception& e) {
 					fprintf(stderr, "%s ERROR: Error updating network: %s\n", _myAddressStr.c_str(), e.what());
 				}
-			} else if (objtype == "_delete_network") {
+			}
+			else if (objtype == "_delete_network") {
 				// fprintf(stderr, "%s: commitThread: delete network\n", _myAddressStr.c_str());
 				try {
 					// don't think we need this. Deletion handled by CV2 API
-				
+
 					pqxx::work w(*c->c);
 					std::string networkId = config["id"];
-					
+
 					w.exec_params0("DELETE FROM network_memberships_ctl WHERE network_id = $1", networkId);
 					w.exec_params0("DELETE FROM networks_ctl WHERE id = $1", networkId);
 
 					w.commit();
-				} catch (std::exception &e) {
+				}
+				catch (std::exception& e) {
 					fprintf(stderr, "%s ERROR: Error deleting network: %s\n", _myAddressStr.c_str(), e.what());
 				}
-			} else if (objtype == "_delete_member") {
+			}
+			else if (objtype == "_delete_member") {
 				// fprintf(stderr, "%s commitThread: delete member\n", _myAddressStr.c_str());
 				try {
 					pqxx::work w(*c->c);
@@ -924,18 +972,19 @@ void CV2::commitThread()
 					std::string memberId = config["id"];
 					std::string networkId = config["nwid"];
 
-					 pqxx::result res = w.exec_params0(
-					 	"DELETE FROM network_memberships_ctl WHERE device_id = $1 AND network_id = $2",
-					 	memberId, networkId);
+					pqxx::result res = w.exec_params0("DELETE FROM network_memberships_ctl WHERE device_id = $1 AND network_id = $2", memberId, networkId);
 
 					w.commit();
-				} catch (std::exception &e) {
+				}
+				catch (std::exception& e) {
 					fprintf(stderr, "%s ERROR: Error deleting member: %s\n", _myAddressStr.c_str(), e.what());
 				}
-			} else {
+			}
+			else {
 				fprintf(stderr, "%s ERROR: unknown objtype\n", _myAddressStr.c_str());
 			}
-		} catch (std::exception &e) {
+		}
+		catch (std::exception& e) {
 			fprintf(stderr, "%s ERROR: Error getting objtype: %s\n", _myAddressStr.c_str(), e.what());
 		}
 		_pool->unborrow(c);
@@ -945,20 +994,21 @@ void CV2::commitThread()
 	fprintf(stderr, "%s commitThread finished\n", _myAddressStr.c_str());
 }
 
-void CV2::onlineNotificationThread() {
-    waitForReady();
+void CV2::onlineNotificationThread()
+{
+	waitForReady();
 
-    _connected = 1;
+	_connected = 1;
 
-    nlohmann::json jtmp1, jtmp2;
-    while (_run == 1) {
+	nlohmann::json jtmp1, jtmp2;
+	while (_run == 1) {
 		auto c = _pool->borrow();
 		auto c2 = _pool->borrow();
 
 		try {
 			fprintf(stderr, "%s onlineNotificationThread\n", _myAddressStr.c_str());
 
-			std::unordered_map<std::pair<uint64_t, uint64_t>, NodeOnlineRecord,_PairHasher> lastOnline;
+			std::unordered_map<std::pair<uint64_t, uint64_t>, NodeOnlineRecord, _PairHasher> lastOnline;
 			{
 				std::lock_guard<std::mutex> l(_lastOnline_l);
 				lastOnline.swap(_lastOnline);
@@ -981,20 +1031,20 @@ void CV2::onlineNotificationThread() {
 				char memTmp[64];
 				char ipTmp[64];
 
-				OSUtils::ztsnprintf(nwidTmp,sizeof(nwidTmp), "%.16llx", nwid_i);
-				OSUtils::ztsnprintf(memTmp,sizeof(memTmp), "%.10llx", i->first.second);
+				OSUtils::ztsnprintf(nwidTmp, sizeof(nwidTmp), "%.16llx", nwid_i);
+				OSUtils::ztsnprintf(memTmp, sizeof(memTmp), "%.10llx", i->first.second);
 
-				if(!get(nwid_i, jtmp1, i->first.second, jtmp2)) {
-					continue; // skip non existent networks/members
+				if (! get(nwid_i, jtmp1, i->first.second, jtmp2)) {
+					continue;	// skip non existent networks/members
 				}
 
 				std::string networkId(nwidTmp);
 				std::string memberId(memTmp);
 
 				try {
-					pqxx::row r = w2.exec_params1("SELECT device_id, network_id FROM network_memberships_ctl WHERE network_id = $1 AND device_id = $2",
-						networkId, memberId);
-				} catch (pqxx::unexpected_rows &e) {
+					pqxx::row r = w2.exec_params1("SELECT device_id, network_id FROM network_memberships_ctl WHERE network_id = $1 AND device_id = $2", networkId, memberId);
+				}
+				catch (pqxx::unexpected_rows& e) {
 					continue;
 				}
 
@@ -1011,37 +1061,44 @@ void CV2::onlineNotificationThread() {
 				}
 
 				json record = {
-					{ipAddr, ts},
+					{ ipAddr, ts },
 				};
 
-				std::string device_network_insert = "INSERT INTO network_memberships_ctl (device_id, network_id, last_seen, os, arch) " 
-					"VALUES ('"+w2.esc(memberId)+"', '"+w2.esc(networkId)+"', '"+w2.esc(record.dump())+"'::JSONB, "
-					"'"+w2.esc(os)+"', '"+w2.esc(arch)+"') " 
-					"ON CONFLICT (device_id, network_id) DO UPDATE SET os = EXCLUDED.os, arch = EXCLUDED.arch, "
-					"last_seen = network_memberships_ctl.last_seen || EXCLUDED.last_seen";
+				std::string device_network_insert = "INSERT INTO network_memberships_ctl (device_id, network_id, last_seen, os, arch) "
+													"VALUES ('"
+													+ w2.esc(memberId) + "', '" + w2.esc(networkId) + "', '" + w2.esc(record.dump())
+													+ "'::JSONB, "
+													  "'"
+													+ w2.esc(os) + "', '" + w2.esc(arch)
+													+ "') "
+													  "ON CONFLICT (device_id, network_id) DO UPDATE SET os = EXCLUDED.os, arch = EXCLUDED.arch, "
+													  "last_seen = network_memberships_ctl.last_seen || EXCLUDED.last_seen";
 				pipe.insert(device_network_insert);
 
 				Metrics::pgsql_node_checkin++;
 			}
 
-			pipe.complete();;
+			pipe.complete();
+			;
 			w2.commit();
 			w.commit();
 			fprintf(stderr, "%s: Updated online status of %lu members\n", _myAddressStr.c_str(), updateCount);
-		} catch (std::exception &e) {
+		}
+		catch (std::exception& e) {
 			fprintf(stderr, "%s ERROR: Error in onlineNotificationThread: %s\n", _myAddressStr.c_str(), e.what());
-		} catch (...) {
+		}
+		catch (...) {
 			fprintf(stderr, "%s ERROR: Unknown error in onlineNotificationThread\n", _myAddressStr.c_str());
 		}
 		_pool->unborrow(c2);
 		_pool->unborrow(c);
 		std::this_thread::sleep_for(std::chrono::seconds(10));
-    }
+	}
 
-    fprintf(stderr, "%s: Fell out of run loop in onlineNotificationThread\n", _myAddressStr.c_str());
+	fprintf(stderr, "%s: Fell out of run loop in onlineNotificationThread\n", _myAddressStr.c_str());
 	if (_run == 1) {
 		fprintf(stderr, "ERROR: %s onlineNotificationThread should still be running! Exiting Controller.\n", _myAddressStr.c_str());
 		exit(6);
 	}
 }
-#endif // ZT_CONTROLLER_USE_LIBPQ
+#endif	 // ZT_CONTROLLER_USE_LIBPQ

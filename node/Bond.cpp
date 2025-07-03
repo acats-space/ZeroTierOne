@@ -373,7 +373,7 @@ SharedPtr<Path> Bond::getAppropriatePath(int64_t now, int32_t flowId)
 	 */
 	if (_policy == ZT_BOND_POLICY_ACTIVE_BACKUP) {
 		if (_abPathIdx != ZT_MAX_PEER_NETWORK_PATHS && _paths[_abPathIdx].p) {
-			//fprintf(stderr, "trying to send via (_abPathIdx=%d) %s\n", _abPathIdx, pathToStr(_paths[_abPathIdx].p).c_str());
+			// fprintf(stderr, "trying to send via (_abPathIdx=%d) %s\n", _abPathIdx, pathToStr(_paths[_abPathIdx].p).c_str());
 			return _paths[_abPathIdx].p;
 		}
 	}
@@ -1584,7 +1584,7 @@ void Bond::processActiveBackupTasks(void* tPtr, int64_t now)
 						}
 					}
 				}
-				if (!foundPreferredPath && foundPathOnPrimaryLink && (nonPreferredPathIdx != ZT_MAX_PEER_NETWORK_PATHS)) {
+				if (! foundPreferredPath && foundPathOnPrimaryLink && (nonPreferredPathIdx != ZT_MAX_PEER_NETWORK_PATHS)) {
 					log("found non-preferred primary link (_abPathIdx=%d)", _abPathIdx);
 					_abPathIdx = nonPreferredPathIdx;
 				}

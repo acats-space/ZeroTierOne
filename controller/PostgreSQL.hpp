@@ -16,10 +16,11 @@
 #ifndef ZT_CONTROLLER_POSTGRESQL_HPP
 #define ZT_CONTROLLER_POSTGRESQL_HPP
 
-#include "DB.hpp"
 #include "ConnectionPool.hpp"
-#include <pqxx/pqxx>
+#include "DB.hpp"
+
 #include <memory>
+#include <pqxx/pqxx>
 
 namespace ZeroTier {
 
@@ -27,56 +28,60 @@ extern "C" {
 typedef struct pg_conn PGconn;
 }
 
-
 class PostgresConnection : public Connection {
-public:
-	virtual ~PostgresConnection() {
+  public:
+	virtual ~PostgresConnection()
+	{
 	}
 
 	std::shared_ptr<pqxx::connection> c;
 	int a;
 };
 
-
 class PostgresConnFactory : public ConnectionFactory {
-public:
-	PostgresConnFactory(std::string &connString) 
-		: m_connString(connString)
+  public:
+	PostgresConnFactory(std::string& connString) : m_connString(connString)
 	{
 	}
 
-	virtual std::shared_ptr<Connection> create() {
+	virtual std::shared_ptr<Connection> create()
+	{
 		Metrics::conn_counter++;
 		auto c = std::shared_ptr<PostgresConnection>(new PostgresConnection());
 		c->c = std::make_shared<pqxx::connection>(m_connString);
 		return std::static_pointer_cast<Connection>(c);
 	}
-private:
+
+  private:
 	std::string m_connString;
 };
 
 class MemberNotificationReceiver : public pqxx::notification_receiver {
-public: 
-	MemberNotificationReceiver(DB *p, pqxx::connection &c, const std::string &channel);
-	virtual ~MemberNotificationReceiver() {
+  public:
+	MemberNotificationReceiver(DB* p, pqxx::connection& c, const std::string& channel);
+	virtual ~MemberNotificationReceiver()
+	{
 		fprintf(stderr, "MemberNotificationReceiver destroyed\n");
 	}
 
-	virtual void operator() (const std::string &payload, int backendPid);
-private:
-	DB *_psql;
+	virtual void operator()(const std::string& payload, int backendPid);
+
+  private:
+	DB* _psql;
 };
 
 class NetworkNotificationReceiver : public pqxx::notification_receiver {
-public:
-	NetworkNotificationReceiver(DB *p, pqxx::connection &c, const std::string &channel);
-	virtual ~NetworkNotificationReceiver() {
+  public:
+	NetworkNotificationReceiver(DB* p, pqxx::connection& c, const std::string& channel);
+	virtual ~NetworkNotificationReceiver()
+	{
 		fprintf(stderr, "NetworkNotificationReceiver destroyed\n");
 	};
 
-	virtual void operator() (const std::string &payload, int packend_pid);
-private:
-	DB *_psql;
+	virtual void operator()(const std::string& payload, int packend_pid);
+
+  private:
+	DB* _psql;
 };
 
 struct NodeOnlineRecord {
@@ -85,8 +90,8 @@ struct NodeOnlineRecord {
 	std::string osArch;
 };
 
-} // namespace ZeroTier
+}	// namespace ZeroTier
 
-#endif // ZT_CONTROLLER_POSTGRESQL_HPP
+#endif	 // ZT_CONTROLLER_POSTGRESQL_HPP
 
-#endif // ZT_CONTROLLER_USE_LIBPQ
+#endif	 // ZT_CONTROLLER_USE_LIBPQ
