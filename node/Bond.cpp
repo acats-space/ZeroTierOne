@@ -1751,11 +1751,10 @@ void Bond::processActiveBackupTasks(void* tPtr, int64_t now)
 		}
 	}
 	// Sort queue based on performance
-	std::sort(_abFailoverQueue.begin(), _abFailoverQueue.end(),
-		[this](const int a, const int b) {
-			// Sort by failover score in descending order (highest score first)
-			return _paths[a].failoverScore > _paths[b].failoverScore;
-		});
+	std::sort(_abFailoverQueue.begin(), _abFailoverQueue.end(), [this](const int a, const int b) {
+		// Sort by failover score in descending order (highest score first)
+		return _paths[a].failoverScore > _paths[b].failoverScore;
+	});
 
 	/**
 	 * Short-circuit if we have no queued paths
