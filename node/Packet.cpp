@@ -13,6 +13,8 @@
 
 #include "Packet.hpp"
 
+#include "ECC.hpp"
+
 #include <stddef.h>
 #include <stdint.h>
 #include <stdio.h>
@@ -1083,11 +1085,13 @@ static inline int LZ4_decompress_safe(const char* source, char* dest, int compre
 
 const unsigned char Packet::ZERO_KEY[32] = { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
 
-void Packet::armor(const void* key, bool encryptPayload, const AES aesKeys[2])
+void Packet::armor(const void* key, bool encryptPayload, bool extendedArmor, const AES aesKeys[2], const Identity& identity)
 {
 	uint8_t* const data = reinterpret_cast<uint8_t*>(unsafeData());
+
+	this->setExtendedArmor(extendedArmor);
+
 	if ((aesKeys) && (encryptPayload)) {
-		// char tmp0[16],tmp1[16];
 		setCipher(ZT_PROTO_CIPHER_SUITE__AES_GMAC_SIV);
 
 		uint8_t* const payload = data + ZT_PACKET_IDX_VERB;
@@ -1118,10 +1122,12 @@ void Packet::armor(const void* key, bool encryptPayload, const AES aesKeys[2])
 		if (ZT_HAS_FAST_CRYPTO()) {
 			const unsigned int payloadLen = (encryptPayload) ? (size() - ZT_PACKET_IDX_VERB) : 0;
 			uint64_t keyStream[(ZT_PROTO_MAX_PACKET_LENGTH + 64 + 8) / 8];
+			uint64_t mac[2];
+
 			ZT_FAST_SINGLE_PASS_SALSA2012(keyStream, payloadLen + 64, (data + ZT_PACKET_IDX_IV), mangledKey);
 			Salsa20::memxor(data + ZT_PACKET_IDX_VERB, reinterpret_cast<const uint8_t*>(keyStream + 8), payloadLen);
-			uint64_t mac[2];
 			Poly1305::compute(mac, data + ZT_PACKET_IDX_VERB, size() - ZT_PACKET_IDX_VERB, keyStream);
+
 #ifdef ZT_NO_TYPE_PUNNING
 			memcpy(data + ZT_PACKET_IDX_MAC, mac, 8);
 #else
@@ -1129,9 +1135,10 @@ void Packet::armor(const void* key, bool encryptPayload, const AES aesKeys[2])
 #endif
 		}
 		else {
-			Salsa20 s20(mangledKey, data + ZT_PACKET_IDX_IV);
-
 			uint64_t macKey[4];
+			uint64_t mac[2];
+
+			Salsa20 s20(mangledKey, data + ZT_PACKET_IDX_IV);
 			s20.crypt12(ZERO_KEY, macKey, sizeof(macKey));
 
 			uint8_t* const payload = data + ZT_PACKET_IDX_VERB;
@@ -1139,24 +1146,62 @@ void Packet::armor(const void* key, bool encryptPayload, const AES aesKeys[2])
 			if (encryptPayload) {
 				s20.crypt12(payload, payload, payloadLen);
 			}
-			uint64_t mac[2];
 
 			Poly1305::compute(mac, payload, payloadLen, macKey);
 			memcpy(data + ZT_PACKET_IDX_MAC, mac, 8);
 		}
 	}
+
+	/* NOTE: this is currently only ever used with NONE encryption for HELLO packets. */
+	if (extendedArmor) {
+		ECC::Pair ephemeralKeyPair = ECC::generate();
+		uint8_t ephemeralSymmetric[32];
+		ECC::agree(ephemeralKeyPair, identity.publicKey(), ephemeralSymmetric, 32);
+
+		AES cipher(ephemeralSymmetric);
+		AES::CTR aesCtr(cipher);
+		aesCtr.init(data, 0, data + ZT_PACKET_IDX_EXTENDED_ARMOR_START);
+		aesCtr.crypt(data + ZT_PACKET_IDX_EXTENDED_ARMOR_START, size() - ZT_PACKET_IDX_EXTENDED_ARMOR_START);
+		aesCtr.finish();
+
+		this->append(ephemeralKeyPair.pub.data, ZT_ECC_EPHEMERAL_PUBLIC_KEY_LEN);
+	}
 }
 
-bool Packet::dearmor(const void* key, const AES aesKeys[2])
+bool Packet::dearmor(const void* key, const AES aesKeys[2], const Identity& identity)
 {
 	uint8_t* const data = reinterpret_cast<uint8_t*>(unsafeData());
+	const unsigned int cs = cipher();
+
+	if (extendedArmor() && (cs == ZT_PROTO_CIPHER_SUITE__C25519_POLY1305_NONE)) {
+		if (size() < (ZT_PACKET_IDX_VERB + 1 + ZT_ECC_EPHEMERAL_PUBLIC_KEY_LEN)) {
+			return false;
+		}
+		uint8_t ephemeralSymmetric[32];
+		ECC::Public ephemeralKey;
+		memcpy(ephemeralKey.data, data + (size() - ZT_ECC_EPHEMERAL_PUBLIC_KEY_LEN), ZT_ECC_EPHEMERAL_PUBLIC_KEY_LEN);
+		ECC::agree(identity.privateKeyPair(), ephemeralKey, ephemeralSymmetric, 32);
+
+		AES cipher(ephemeralSymmetric);
+		AES::CTR aesCtr(cipher);
+		aesCtr.init(data, 0, data + ZT_PACKET_IDX_EXTENDED_ARMOR_START);
+		aesCtr.crypt(data + ZT_PACKET_IDX_EXTENDED_ARMOR_START, (size() - ZT_PACKET_IDX_EXTENDED_ARMOR_START) - ZT_ECC_EPHEMERAL_PUBLIC_KEY_LEN);
+		aesCtr.finish();
+
+		this->setSize(size() - ZT_ECC_EPHEMERAL_PUBLIC_KEY_LEN);
+
+		/* Note: both the MAC and the data were encrypted with the ephemeral key. We don't need
+		 * a separate MAC for the ephemeral encryption because the MAC check below is obviously
+		 * going to fail if the ephemeral key was incorrect. */
+	}
+
 	const unsigned int payloadLen = size() - ZT_PACKET_IDX_VERB;
 	unsigned char* const payload = data + ZT_PACKET_IDX_VERB;
-	const unsigned int cs = cipher();
 
 	if (cs == ZT_PROTO_CIPHER_SUITE__AES_GMAC_SIV) {
 		if (aesKeys) {
 			uint64_t tag[2];
+
 #ifdef ZT_NO_UNALIGNED_ACCESS
 			Utils::copy<8>(tag, data);
 			Utils::copy<8>(tag + 1, data + ZT_PACKET_IDX_MAC);

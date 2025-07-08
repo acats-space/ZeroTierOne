@@ -66,17 +66,10 @@
     <ClCompile Include="..\..\node\AES_aesni.cpp" />
     <ClCompile Include="..\..\node\AES_armcrypto.cpp" />
     <ClCompile Include="..\..\node\Bond.cpp" />
-    <ClCompile Include="..\..\node\C25519.cpp">
-      <Optimization Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">MaxSpeed</Optimization>
-      <Optimization Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">MaxSpeed</Optimization>
-      <Optimization Condition="'$(Configuration)|$(Platform)'=='Debug|ARM64'">MaxSpeed</Optimization>
-      <BasicRuntimeChecks Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">Default</BasicRuntimeChecks>
-      <BasicRuntimeChecks Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Default</BasicRuntimeChecks>
-      <BasicRuntimeChecks Condition="'$(Configuration)|$(Platform)'=='Debug|ARM64'">Default</BasicRuntimeChecks>
-    </ClCompile>
     <ClCompile Include="..\..\node\Capability.cpp" />
     <ClCompile Include="..\..\node\CertificateOfMembership.cpp" />
     <ClCompile Include="..\..\node\CertificateOfOwnership.cpp" />
+    <ClCompile Include="..\..\node\ECC.cpp" />
     <ClCompile Include="..\..\node\Identity.cpp" />
     <ClCompile Include="..\..\node\IncomingPacket.cpp" />
     <ClCompile Include="..\..\node\InetAddress.cpp" />
@@ -200,7 +193,7 @@
     <ClInclude Include="..\..\node\Bond.hpp" />
     <ClInclude Include="..\..\node\BondController.hpp" />
     <ClInclude Include="..\..\node\Buffer.hpp" />
-    <ClInclude Include="..\..\node\C25519.hpp" />
+    <ClInclude Include="..\..\node\ECC.hpp" />
     <ClInclude Include="..\..\node\CertificateOfMembership.hpp" />
     <ClInclude Include="..\..\node\CertificateOfOwnership.hpp" />
     <ClInclude Include="..\..\node\Constants.hpp" />

@@ -17,9 +17,9 @@
 #include "../include/ZeroTierOne.h"
 #include "Address.hpp"
 #include "Buffer.hpp"
-#include "C25519.hpp"
 #include "Constants.hpp"
 #include "Credential.hpp"
+#include "ECC.hpp"
 #include "Identity.hpp"
 #include "Utils.hpp"
 
@@ -152,8 +152,8 @@ class Revocation : public Credential {
 
 		if (! forSign) {
 			b.append((uint8_t)1);	// 1 == Ed25519 signature
-			b.append((uint16_t)ZT_C25519_SIGNATURE_LEN);
-			b.append(_signature.data, ZT_C25519_SIGNATURE_LEN);
+			b.append((uint16_t)ZT_ECC_SIGNATURE_LEN);
+			b.append(_signature.data, ZT_ECC_SIGNATURE_LEN);
 		}
 
 		// This is the size of any additional fields, currently 0.
@@ -189,10 +189,10 @@ class Revocation : public Credential {
 		_type = (Credential::Type)b[p++];
 
 		if (b[p++] == 1) {
-			if (b.template at<uint16_t>(p) == ZT_C25519_SIGNATURE_LEN) {
+			if (b.template at<uint16_t>(p) == ZT_ECC_SIGNATURE_LEN) {
 				p += 2;
-				memcpy(_signature.data, b.field(p, ZT_C25519_SIGNATURE_LEN), ZT_C25519_SIGNATURE_LEN);
-				p += ZT_C25519_SIGNATURE_LEN;
+				memcpy(_signature.data, b.field(p, ZT_ECC_SIGNATURE_LEN), ZT_ECC_SIGNATURE_LEN);
+				p += ZT_ECC_SIGNATURE_LEN;
 			}
 			else {
 				throw ZT_EXCEPTION_INVALID_SERIALIZED_DATA_INVALID_CRYPTOGRAPHIC_TOKEN;
@@ -219,7 +219,7 @@ class Revocation : public Credential {
 	Address _target;
 	Address _signedBy;
 	Credential::Type _type;
-	C25519::Signature _signature;
+	ECC::Signature _signature;
 };
 
 }	// namespace ZeroTier

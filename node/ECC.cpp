@@ -7,16 +7,11 @@ Derived from public domain code by D. J. Bernstein.
 // Modified very slightly for ZeroTier One by Adam Ierymenko
 // This code remains in the public domain.
 
-#include "C25519.hpp"
+#include "ECC.hpp"
 
-#include "Buffer.hpp"
-#include "Constants.hpp"
-#include "Hashtable.hpp"
-#include "Mutex.hpp"
 #include "SHA512.hpp"
 
 #include <stdint.h>
-#include <stdlib.h>
 #include <string.h>
 
 #ifdef __WINDOWS__
@@ -2452,7 +2447,7 @@ extern "C" void ed25519_amd64_asm_sign(const unsigned char* sk, const unsigned c
 
 namespace ZeroTier {
 
-void C25519::agree(const C25519::Private& mine, const C25519::Public& their, void* keybuf, unsigned int keylen)
+void ECC::agree(const ECC::Private& mine, const ECC::Public& their, void* keybuf, unsigned int keylen)
 {
 	unsigned char rawkey[32];
 	unsigned char digest[64];
@@ -2468,7 +2463,7 @@ void C25519::agree(const C25519::Private& mine, const C25519::Public& their, voi
 	}
 }
 
-void C25519::sign(const C25519::Private& myPrivate, const C25519::Public& myPublic, const void* msg, unsigned int len, void* signature)
+void ECC::sign(const ECC::Private& myPrivate, const ECC::Public& myPublic, const void* msg, unsigned int len, void* signature)
 {
 	unsigned char digest[64];	// we sign the first 32 bytes of SHA-512(msg)
 	SHA512(digest, msg, len);
@@ -2524,7 +2519,7 @@ void C25519::sign(const C25519::Private& myPrivate, const C25519::Public& myPubl
 #endif
 }
 
-bool C25519::verify(const C25519::Public& their, const void* msg, unsigned int len, const void* signature)
+bool ECC::verify(const ECC::Public& their, const void* msg, unsigned int len, const void* signature)
 {
 	const unsigned char* const sig = (const unsigned char*)signature;
 	unsigned char digest[64];	// we sign the first 32 bytes of SHA-512(msg)
@@ -2555,14 +2550,14 @@ bool C25519::verify(const C25519::Public& their, const void* msg, unsigned int l
 	return Utils::secureEq(sig, t2, 32);
 }
 
-void C25519::_calcPubDH(C25519::Pair& kp)
+void ECC::_calcPubDH(ECC::Pair& kp)
 {
 	// First 32 bytes of pub and priv are the keys for ECDH key
 	// agreement. This generates the public portion from the private.
 	crypto_scalarmult_base(kp.pub.data, kp.priv.data);
 }
 
-void C25519::_calcPubED(C25519::Pair& kp)
+void ECC::_calcPubED(ECC::Pair& kp)
 {
 	unsigned char extsk[64];
 	sc25519 scsk;

@@ -13,6 +13,7 @@
 
 #include "CertificateOfMembership.hpp"
 
+#include "ECC.hpp"
 #include "Network.hpp"
 #include "Node.hpp"
 #include "RuntimeEnvironment.hpp"
@@ -44,7 +45,7 @@ CertificateOfMembership::CertificateOfMembership(uint64_t timestamp, uint64_t ti
 	}
 
 	_qualifierCount = 7;
-	memset(_signature.data, 0, ZT_C25519_SIGNATURE_LEN);
+	memset(_signature.data, 0, ZT_ECC_SIGNATURE_LEN);
 }
 
 bool CertificateOfMembership::agreesWith(const CertificateOfMembership& other, const Identity& otherIdentity) const

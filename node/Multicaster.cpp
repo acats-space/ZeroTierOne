@@ -13,7 +13,6 @@
 
 #include "Multicaster.hpp"
 
-#include "C25519.hpp"
 #include "CertificateOfMembership.hpp"
 #include "Constants.hpp"
 #include "Network.hpp"
@@ -190,7 +189,7 @@ void Multicaster::send(void* tPtr, int64_t now, const SharedPtr<Network>& networ
 					if (! network->config().disableCompression()) {
 						outp.compress();
 					}
-					outp.armor(bestMulticastReplicator->key(), true, bestMulticastReplicator->aesKeysIfSupported());
+					outp.armor(bestMulticastReplicator->key(), true, false, bestMulticastReplicator->aesKeysIfSupported(), bestMulticastReplicator->identity());
 					Metrics::pkt_multicast_frame_out++;
 					bestMulticastReplicatorPath->send(RR, tPtr, outp.data(), outp.size(), now);
 					return;

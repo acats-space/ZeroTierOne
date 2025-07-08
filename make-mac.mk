@@ -83,7 +83,7 @@ ifeq ($(ZT_DEBUG),1)
 	# C25519 in particular is almost UNUSABLE in heavy testing without it.
 node/Salsa20.o node/SHA512.o node/C25519.o node/Poly1305.o: CFLAGS = -Wall -O2 -g $(INCLUDES) $(DEFS)
 else
-	CFLAGS?=-Ofast -fstack-protector-strong
+	CFLAGS?=-O3 -fstack-protector-strong
 	CFLAGS+=$(ARCH_FLAGS) -Wall -flto -fPIE -mmacosx-version-min=$(MACOS_VERSION_MIN) -DNDEBUG -Wno-unused-private-field $(INCLUDES) $(DEFS)
 	STRIP=strip
 	EXTRA_CARGO_FLAGS=--release
@@ -109,7 +109,7 @@ ext/x64-salsa2012-asm/salsa2012.o:
 	as -arch x86_64 -mmacosx-version-min=$(MACOS_VERSION_MIN) -o ext/x64-salsa2012-asm/salsa2012.o ext/x64-salsa2012-asm/salsa2012.s
 
 mac-agent: FORCE
-	$(CC) -Ofast $(ARCH_FLAGS) -mmacosx-version-min=$(MACOS_VERSION_MIN) -o MacEthernetTapAgent osdep/MacEthernetTapAgent.c
+	$(CC) -O3 $(ARCH_FLAGS) -mmacosx-version-min=$(MACOS_VERSION_MIN) -o MacEthernetTapAgent osdep/MacEthernetTapAgent.c
 	$(CODESIGN) -f --options=runtime -s $(CODESIGN_APP_CERT) MacEthernetTapAgent
 
 osdep/MacDNSHelper.o: osdep/MacDNSHelper.mm

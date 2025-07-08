@@ -15,8 +15,8 @@
 #define ZT_WORLD_HPP
 
 #include "Buffer.hpp"
-#include "C25519.hpp"
 #include "Constants.hpp"
+#include "ECC.hpp"
 #include "Identity.hpp"
 #include "InetAddress.hpp"
 
@@ -41,7 +41,7 @@
 /**
  * The (more than) maximum length of a serialized World
  */
-#define ZT_WORLD_MAX_SERIALIZED_LENGTH (((1024 + (32 * ZT_WORLD_MAX_STABLE_ENDPOINTS_PER_ROOT)) * ZT_WORLD_MAX_ROOTS) + ZT_C25519_PUBLIC_KEY_LEN + ZT_C25519_SIGNATURE_LEN + 128)
+#define ZT_WORLD_MAX_SERIALIZED_LENGTH (((1024 + (32 * ZT_WORLD_MAX_STABLE_ENDPOINTS_PER_ROOT)) * ZT_WORLD_MAX_ROOTS) + ZT_ECC_PUBLIC_KEY_SET_LEN + ZT_ECC_SIGNATURE_LEN + 128)
 
 /**
  * World ID for Earth
@@ -150,7 +150,7 @@ class World {
 	/**
 	 * @return C25519 signature
 	 */
-	inline const C25519::Signature& signature() const
+	inline const ECC::Signature& signature() const
 	{
 		return _signature;
 	}
@@ -158,7 +158,7 @@ class World {
 	/**
 	 * @return Public key that must sign next update
 	 */
-	inline const C25519::Public& updatesMustBeSignedBy() const
+	inline const ECC::Public& updatesMustBeSignedBy() const
 	{
 		return _updatesMustBeSignedBy;
 	}
@@ -177,7 +177,7 @@ class World {
 		if ((_id == update._id) && (_ts < update._ts) && (_type == update._type)) {
 			Buffer<ZT_WORLD_MAX_SERIALIZED_LENGTH> tmp;
 			update.serialize(tmp, true);
-			return C25519::verify(_updatesMustBeSignedBy, tmp.data(), tmp.size(), update._signature);
+			return ECC::verify(_updatesMustBeSignedBy, tmp.data(), tmp.size(), update._signature);
 		}
 		return false;
 	}
@@ -199,9 +199,9 @@ class World {
 		b.append((uint8_t)_type);
 		b.append((uint64_t)_id);
 		b.append((uint64_t)_ts);
-		b.append(_updatesMustBeSignedBy.data, ZT_C25519_PUBLIC_KEY_LEN);
+		b.append(_updatesMustBeSignedBy.data, ZT_ECC_PUBLIC_KEY_SET_LEN);
 		if (! forSign) {
-			b.append(_signature.data, ZT_C25519_SIGNATURE_LEN);
+			b.append(_signature.data, ZT_ECC_SIGNATURE_LEN);
 		}
 		b.append((uint8_t)_roots.size());
 		for (std::vector<Root>::const_iterator r(_roots.begin()); r != _roots.end(); ++r) {
@@ -244,10 +244,10 @@ class World {
 		p += 8;
 		_ts = b.template at<uint64_t>(p);
 		p += 8;
-		memcpy(_updatesMustBeSignedBy.data, b.field(p, ZT_C25519_PUBLIC_KEY_LEN), ZT_C25519_PUBLIC_KEY_LEN);
-		p += ZT_C25519_PUBLIC_KEY_LEN;
-		memcpy(_signature.data, b.field(p, ZT_C25519_SIGNATURE_LEN), ZT_C25519_SIGNATURE_LEN);
-		p += ZT_C25519_SIGNATURE_LEN;
+		memcpy(_updatesMustBeSignedBy.data, b.field(p, ZT_ECC_PUBLIC_KEY_SET_LEN), ZT_ECC_PUBLIC_KEY_SET_LEN);
+		p += ZT_ECC_PUBLIC_KEY_SET_LEN;
+		memcpy(_signature.data, b.field(p, ZT_ECC_SIGNATURE_LEN), ZT_ECC_SIGNATURE_LEN);
+		p += ZT_ECC_SIGNATURE_LEN;
 		const unsigned int numRoots = (unsigned int)b[p++];
 		if (numRoots > ZT_WORLD_MAX_ROOTS) {
 			throw ZT_EXCEPTION_INVALID_SERIALIZED_DATA_OVERFLOW;
@@ -275,7 +275,7 @@ class World {
 	inline bool operator==(const World& w) const
 	{
 		return (
-			(_id == w._id) && (_ts == w._ts) && (memcmp(_updatesMustBeSignedBy.data, w._updatesMustBeSignedBy.data, ZT_C25519_PUBLIC_KEY_LEN) == 0) && (memcmp(_signature.data, w._signature.data, ZT_C25519_SIGNATURE_LEN) == 0)
+			(_id == w._id) && (_ts == w._ts) && (memcmp(_updatesMustBeSignedBy.data, w._updatesMustBeSignedBy.data, ZT_ECC_PUBLIC_KEY_SET_LEN) == 0) && (memcmp(_signature.data, w._signature.data, ZT_ECC_SIGNATURE_LEN) == 0)
 			&& (_roots == w._roots) && (_type == w._type));
 	}
 	inline bool operator!=(const World& w) const
@@ -294,7 +294,7 @@ class World {
 	 * @param signWith Key to sign this World with (can have the same public as the next-update signing key, but doesn't have to)
 	 * @return Signed World object
 	 */
-	static inline World make(World::Type t, uint64_t id, uint64_t ts, const C25519::Public& sk, const std::vector<World::Root>& roots, const C25519::Pair& signWith)
+	static inline World make(World::Type t, uint64_t id, uint64_t ts, const ECC::Public& sk, const std::vector<World::Root>& roots, const ECC::Pair& signWith)
 	{
 		World w;
 		w._id = id;
@@ -305,7 +305,7 @@ class World {
 
 		Buffer<ZT_WORLD_MAX_SERIALIZED_LENGTH> tmp;
 		w.serialize(tmp, true);
-		w._signature = C25519::sign(signWith, tmp.data(), tmp.size());
+		w._signature = ECC::sign(signWith, tmp.data(), tmp.size());
 
 		return w;
 	}
@@ -314,8 +314,8 @@ class World {
 	uint64_t _id;
 	uint64_t _ts;
 	Type _type;
-	C25519::Public _updatesMustBeSignedBy;
-	C25519::Signature _signature;
+	ECC::Public _updatesMustBeSignedBy;
+	ECC::Signature _signature;
 	std::vector<Root> _roots;
 };
 
