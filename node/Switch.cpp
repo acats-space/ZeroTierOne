@@ -121,7 +121,7 @@ void Switch::onRemotePacket(void* tPtr, const int64_t localSocket, const InetAdd
 						Mutex::Lock rql(rq->lock);
 						if (rq->packetId != fragmentPacketId) {
 							// No packet found, so we received a fragment without its head.
-
+							Metrics::vl1_fragment_without_head_rx++;
 							rq->flowId = flowId;
 							rq->timestamp = now;
 							rq->packetId = fragmentPacketId;
@@ -132,7 +132,7 @@ void Switch::onRemotePacket(void* tPtr, const int64_t localSocket, const InetAdd
 						}
 						else if (! (rq->haveFragments & (1 << fragmentNumber))) {
 							// We have other fragments and maybe the head, so add this one and check
-
+							Metrics::vl1_fragment_before_head_rx++;
 							rq->frags[fragmentNumber - 1] = fragment;
 							rq->totalFragments = totalFragments;
 
@@ -143,14 +143,17 @@ void Switch::onRemotePacket(void* tPtr, const int64_t localSocket, const InetAdd
 									rq->frag0.append(rq->frags[f - 1].payload(), rq->frags[f - 1].payloadLength());
 								}
 
-								if (rq->frag0.tryDecode(RR, tPtr, flowId)) {
-									rq->timestamp = 0;	 // packet decoded, free entry
-								}
-								else {
-									rq->complete = true;   // set complete flag but leave entry since it probably needs WHOIS or something
+								if (rq->frag0.tryDecode(RR,tPtr,flowId)) {
+									rq->timestamp = 0; // packet decoded, free entry
+								} else {
+									rq->complete = true; // set complete flag but leave entry since it probably needs WHOIS or something
+									Metrics::vl1_reassembly_failed_rx++;
 								}
 							}
-						}	// else this is a duplicate fragment, ignore
+						} else {
+							// This is a duplicate fragment, ignore
+							Metrics::vl1_duplicate_fragment_rx++;
+						}
 					}
 				}
 
@@ -230,19 +233,21 @@ void Switch::onRemotePacket(void* tPtr, const int64_t localSocket, const InetAdd
 							}
 
 							if (rq->frag0.tryDecode(RR, tPtr, flowId)) {
-								rq->timestamp = 0;	 // packet decoded, free entry
-							}
-							else {
-								rq->complete = true;   // set complete flag but leave entry since it probably needs WHOIS or something
+								rq->timestamp = 0; // packet decoded, free entry
+							} else {
+								rq->complete = true; // set complete flag but leave entry since it probably needs WHOIS or something
+								Metrics::vl1_reassembly_failed_rx++;
 							}
 						}
 						else {
 							// Still waiting on more fragments, but keep the head
 							rq->frag0.init(data, len, path, now);
 						}
-					}	// else this is a duplicate head, ignore
-				}
-				else {
+					} else {
+						// This is a duplicate head, ignore
+						Metrics::vl1_duplicate_head_rx++;
+					}
+				} else {
 					// Packet is unfragmented, so just process it
 					IncomingPacket packet(data, len, path, now);
 					if (! packet.tryDecode(RR, tPtr, flowId)) {
@@ -268,7 +273,16 @@ void Switch::onRemotePacket(void* tPtr, const int64_t localSocket, const InetAdd
 
 void Switch::onLocalEthernet(void* tPtr, const SharedPtr<Network>& network, const MAC& from, const MAC& to, unsigned int etherType, unsigned int vlanId, const void* data, unsigned int len)
 {
-	if (! network->hasConfig()) {
+	if (!network->hasConfig()) {
+		return;
+	}
+
+	// VL2 fragmentation metric: oversized frame from TAP device (TX)
+	unsigned int tap_mtu = network->config().mtu;
+	bool was_fragmented_at_vl2 = (len > tap_mtu);
+	if (was_fragmented_at_vl2) {
+		Metrics::vl2_oversized_frame_tx++;
+		// Just measure, do not drop or return
 		return;
 	}
 
@@ -960,9 +974,17 @@ void Switch::doAnythingWaitingForPeer(void* tPtr, const SharedPtr<Peer>& peer)
 	for (unsigned int ptr = 0; ptr < ZT_RX_QUEUE_SIZE; ++ptr) {
 		RXQueueEntry* const rq = &(_rxQueue[ptr]);
 		Mutex::Lock rql(rq->lock);
-		if ((rq->timestamp) && (rq->complete)) {
-			if ((rq->frag0.tryDecode(RR, tPtr, rq->flowId)) || ((now - rq->timestamp) > ZT_RECEIVE_QUEUE_TIMEOUT)) {
+		if ((rq->timestamp)&&(rq->complete)) {
+			if ((rq->frag0.tryDecode(RR, tPtr, rq->flowId))||((now - rq->timestamp) > ZT_RECEIVE_QUEUE_TIMEOUT)) {
 				rq->timestamp = 0;
+				if ((now - rq->timestamp) > ZT_RECEIVE_QUEUE_TIMEOUT) {
+					Metrics::vl1_incomplete_reassembly_rx++;
+				}
+			} else {
+				const Address src(rq->frag0.source());
+				if (!RR->topology->getPeer(tPtr,src)) {
+					requestWhois(tPtr,now,src);
+				}
 			}
 		}
 	}
@@ -1019,9 +1041,12 @@ unsigned long Switch::doTimerTasks(void* tPtr, int64_t now)
 	for (unsigned int ptr = 0; ptr < ZT_RX_QUEUE_SIZE; ++ptr) {
 		RXQueueEntry* const rq = &(_rxQueue[ptr]);
 		Mutex::Lock rql(rq->lock);
-		if ((rq->timestamp) && (rq->complete)) {
-			if ((rq->frag0.tryDecode(RR, tPtr, rq->flowId)) || ((now - rq->timestamp) > ZT_RECEIVE_QUEUE_TIMEOUT)) {
+		if ((rq->timestamp)&&(rq->complete)) {
+			if ((rq->frag0.tryDecode(RR, tPtr, rq->flowId))||((now - rq->timestamp) > ZT_RECEIVE_QUEUE_TIMEOUT)) {
 				rq->timestamp = 0;
+				if ((now - rq->timestamp) > ZT_RECEIVE_QUEUE_TIMEOUT) {
+					Metrics::vl1_incomplete_reassembly_rx++;
+				}
 			}
 			else {
 				const Address src(rq->frag0.source());
@@ -1084,7 +1109,7 @@ bool Switch::_trySend(void* tPtr, Packet& packet, bool encrypt, int32_t flowId)
 			for (int i = 0; i < ZT_MAX_PEER_NETWORK_PATHS; ++i) {
 				if (peer->_paths[i].p && peer->_paths[i].p->alive(now)) {
 					uint16_t userSpecifiedMtu = peer->_paths[i].p->mtu();
-					_sendViaSpecificPath(tPtr, peer, peer->_paths[i].p, userSpecifiedMtu, now, packet, encrypt, flowId);
+					_sendViaSpecificPath(tPtr, peer, peer->_paths[i].p, userSpecifiedMtu, now, packet, encrypt, flowId, false);
 				}
 			}
 			return true;
@@ -1102,7 +1127,7 @@ bool Switch::_trySend(void* tPtr, Packet& packet, bool encrypt, int32_t flowId)
 			}
 			if (viaPath) {
 				uint16_t userSpecifiedMtu = viaPath->mtu();
-				_sendViaSpecificPath(tPtr, peer, viaPath, userSpecifiedMtu, now, packet, encrypt, flowId);
+				_sendViaSpecificPath(tPtr, peer, viaPath, userSpecifiedMtu, now, packet, encrypt, flowId, false);
 				return true;
 			}
 		}
@@ -1110,7 +1135,7 @@ bool Switch::_trySend(void* tPtr, Packet& packet, bool encrypt, int32_t flowId)
 	return false;
 }
 
-void Switch::_sendViaSpecificPath(void* tPtr, SharedPtr<Peer> peer, SharedPtr<Path> viaPath, uint16_t userSpecifiedMtu, int64_t now, Packet& packet, bool encrypt, int32_t flowId)
+void Switch::_sendViaSpecificPath(void* tPtr, SharedPtr<Peer> peer, SharedPtr<Path> viaPath, uint16_t userSpecifiedMtu, int64_t now, Packet& packet, bool encrypt, int32_t flowId, bool was_fragmented_at_vl2)
 {
 	unsigned int mtu = ZT_DEFAULT_PHYSMTU;
 	uint64_t trustedPathId = 0;
@@ -1137,6 +1162,11 @@ void Switch::_sendViaSpecificPath(void* tPtr, SharedPtr<Peer> peer, SharedPtr<Pa
 	if (viaPath->send(RR, tPtr, packet.data(), chunkSize, now)) {
 		if (chunkSize < packet.size()) {
 			// Too big for one packet, fragment the rest
+			Metrics::vl1_fragments_per_packet_hist.Observe(2);
+			if (was_fragmented_at_vl2) {
+				Metrics::vl1_vl2_double_fragmentation_tx++;
+			}
+
 			unsigned int fragStart = chunkSize;
 			unsigned int remaining = packet.size() - chunkSize;
 			unsigned int fragsRemaining = (remaining / (mtu - ZT_PROTO_MIN_FRAGMENT_LENGTH));
@@ -1144,6 +1174,7 @@ void Switch::_sendViaSpecificPath(void* tPtr, SharedPtr<Peer> peer, SharedPtr<Pa
 				++fragsRemaining;
 			}
 			const unsigned int totalFragments = fragsRemaining + 1;
+			Metrics::vl1_fragments_per_packet_hist.Observe(totalFragments);
 
 			for (unsigned int fno = 1; fno < totalFragments; ++fno) {
 				chunkSize = std::min(remaining, (unsigned int)(mtu - ZT_PROTO_MIN_FRAGMENT_LENGTH));
