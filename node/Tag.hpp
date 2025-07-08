@@ -16,9 +16,9 @@
 
 #include "Address.hpp"
 #include "Buffer.hpp"
-#include "C25519.hpp"
 #include "Constants.hpp"
 #include "Credential.hpp"
+#include "ECC.hpp"
 #include "Identity.hpp"
 
 #include <stdint.h>
@@ -137,9 +137,9 @@ class Tag : public Credential {
 		_issuedTo.appendTo(b);
 		_signedBy.appendTo(b);
 		if (! forSign) {
-			b.append((uint8_t)1);						   // 1 == Ed25519
-			b.append((uint16_t)ZT_C25519_SIGNATURE_LEN);   // length of signature
-			b.append(_signature.data, ZT_C25519_SIGNATURE_LEN);
+			b.append((uint8_t)1);						// 1 == Ed25519
+			b.append((uint16_t)ZT_ECC_SIGNATURE_LEN);	// length of signature
+			b.append(_signature.data, ZT_ECC_SIGNATURE_LEN);
 		}
 
 		b.append((uint16_t)0);	 // length of additional fields, currently 0
@@ -170,12 +170,12 @@ class Tag : public Credential {
 		_signedBy.setTo(b.field(p, ZT_ADDRESS_LENGTH), ZT_ADDRESS_LENGTH);
 		p += ZT_ADDRESS_LENGTH;
 		if (b[p++] == 1) {
-			if (b.template at<uint16_t>(p) != ZT_C25519_SIGNATURE_LEN) {
+			if (b.template at<uint16_t>(p) != ZT_ECC_SIGNATURE_LEN) {
 				throw ZT_EXCEPTION_INVALID_SERIALIZED_DATA_INVALID_CRYPTOGRAPHIC_TOKEN;
 			}
 			p += 2;
-			memcpy(_signature.data, b.field(p, ZT_C25519_SIGNATURE_LEN), ZT_C25519_SIGNATURE_LEN);
-			p += ZT_C25519_SIGNATURE_LEN;
+			memcpy(_signature.data, b.field(p, ZT_ECC_SIGNATURE_LEN), ZT_ECC_SIGNATURE_LEN);
+			p += ZT_ECC_SIGNATURE_LEN;
 		}
 		else {
 			p += 2 + b.template at<uint16_t>(p);
@@ -251,7 +251,7 @@ class Tag : public Credential {
 	int64_t _ts;
 	Address _issuedTo;
 	Address _signedBy;
-	C25519::Signature _signature;
+	ECC::Signature _signature;
 };
 
 }	// namespace ZeroTier

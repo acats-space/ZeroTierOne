@@ -15,6 +15,7 @@
 
 #include "../version.h"
 #include "Constants.hpp"
+#include "Identity.hpp"
 #include "InetAddress.hpp"
 #include "Metrics.hpp"
 #include "Network.hpp"
@@ -251,7 +252,7 @@ void Peer::received(
 						Metrics::pkt_push_direct_paths_out++;
 						outp->setAt(ZT_PACKET_IDX_PAYLOAD, (uint16_t)count);
 						outp->compress();
-						outp->armor(_key, true, aesKeysIfSupported());
+						outp->armor(_key, true, false, aesKeysIfSupported(), _id);
 						Metrics::pkt_push_direct_paths_out++;
 						path->send(RR, tPtr, outp->data(), outp->size(), now);
 					}
@@ -401,7 +402,7 @@ void Peer::introduce(void* const tPtr, const int64_t now, const SharedPtr<Peer>&
 					outp.append((uint8_t)4);
 					outp.append(other->_paths[theirs].p->address().rawIpData(), 4);
 				}
-				outp.armor(_key, true, aesKeysIfSupported());
+				outp.armor(_key, true, false, aesKeysIfSupported(), _id);
 				Metrics::pkt_rendezvous_out++;
 				_paths[mine].p->send(RR, tPtr, outp.data(), outp.size(), now);
 			}
@@ -418,7 +419,7 @@ void Peer::introduce(void* const tPtr, const int64_t now, const SharedPtr<Peer>&
 					outp.append((uint8_t)4);
 					outp.append(_paths[mine].p->address().rawIpData(), 4);
 				}
-				outp.armor(other->_key, true, other->aesKeysIfSupported());
+				outp.armor(other->_key, true, false, other->aesKeysIfSupported(), other->identity());
 				Metrics::pkt_rendezvous_out++;
 				other->_paths[theirs].p->send(RR, tPtr, outp.data(), outp.size(), now);
 			}
@@ -463,13 +464,13 @@ void Peer::sendHELLO(void* tPtr, const int64_t localSocket, const InetAddress& a
 	Metrics::pkt_hello_out++;
 
 	if (atAddress) {
-		outp.armor(_key, false, nullptr);	// false == don't encrypt full payload, but add MAC
+		outp.armor(_key, false, true, nullptr, _id);
 		RR->node->expectReplyTo(outp.packetId());
 		RR->node->putPacket(tPtr, RR->node->lowBandwidthModeEnabled() ? localSocket : -1, atAddress, outp.data(), outp.size());
 	}
 	else {
 		RR->node->expectReplyTo(outp.packetId());
-		RR->sw->send(tPtr, outp, false);   // false == don't encrypt full payload, but add MAC
+		RR->sw->send(tPtr, outp, true);
 	}
 }
 
@@ -477,7 +478,7 @@ void Peer::attemptToContactAt(void* tPtr, const int64_t localSocket, const InetA
 {
 	if ((! sendFullHello) && (_vProto >= 5) && (! ((_vMajor == 1) && (_vMinor == 1) && (_vRevision == 0)))) {
 		Packet outp(_id.address(), RR->identity.address(), Packet::VERB_ECHO);
-		outp.armor(_key, true, aesKeysIfSupported());
+		outp.armor(_key, true, false, aesKeysIfSupported(), _id);
 		Metrics::pkt_echo_out++;
 		RR->node->expectReplyTo(outp.packetId());
 		RR->node->putPacket(tPtr, localSocket, atAddress, outp.data(), outp.size());

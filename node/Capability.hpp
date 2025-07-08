@@ -17,9 +17,9 @@
 #include "../include/ZeroTierOne.h"
 #include "Address.hpp"
 #include "Buffer.hpp"
-#include "C25519.hpp"
 #include "Constants.hpp"
 #include "Credential.hpp"
+#include "ECC.hpp"
 #include "Identity.hpp"
 #include "Utils.hpp"
 
@@ -413,9 +413,9 @@ class Capability : public Credential {
 				if ((i < _maxCustodyChainLength) && (i < ZT_MAX_CAPABILITY_CUSTODY_CHAIN_LENGTH) && (_custody[i].to)) {
 					_custody[i].to.appendTo(b);
 					_custody[i].from.appendTo(b);
-					b.append((uint8_t)1);						   // 1 == Ed25519 signature
-					b.append((uint16_t)ZT_C25519_SIGNATURE_LEN);   // length of signature
-					b.append(_custody[i].signature.data, ZT_C25519_SIGNATURE_LEN);
+					b.append((uint8_t)1);						// 1 == Ed25519 signature
+					b.append((uint16_t)ZT_ECC_SIGNATURE_LEN);	// length of signature
+					b.append(_custody[i].signature.data, ZT_ECC_SIGNATURE_LEN);
 				}
 				else {
 					b.append((unsigned char)0, ZT_ADDRESS_LENGTH);	 // zero 'to' terminates chain
@@ -470,12 +470,12 @@ class Capability : public Credential {
 			_custody[i].from.setTo(b.field(p, ZT_ADDRESS_LENGTH), ZT_ADDRESS_LENGTH);
 			p += ZT_ADDRESS_LENGTH;
 			if (b[p++] == 1) {
-				if (b.template at<uint16_t>(p) != ZT_C25519_SIGNATURE_LEN) {
+				if (b.template at<uint16_t>(p) != ZT_ECC_SIGNATURE_LEN) {
 					throw ZT_EXCEPTION_INVALID_SERIALIZED_DATA_INVALID_CRYPTOGRAPHIC_TOKEN;
 				}
 				p += 2;
-				memcpy(_custody[i].signature.data, b.field(p, ZT_C25519_SIGNATURE_LEN), ZT_C25519_SIGNATURE_LEN);
-				p += ZT_C25519_SIGNATURE_LEN;
+				memcpy(_custody[i].signature.data, b.field(p, ZT_ECC_SIGNATURE_LEN), ZT_ECC_SIGNATURE_LEN);
+				p += ZT_ECC_SIGNATURE_LEN;
 			}
 			else {
 				p += 2 + b.template at<uint16_t>(p);
@@ -518,7 +518,7 @@ class Capability : public Credential {
 	struct {
 		Address to;
 		Address from;
-		C25519::Signature signature;
+		ECC::Signature signature;
 	} _custody[ZT_MAX_CAPABILITY_CUSTODY_CHAIN_LENGTH];
 };
 

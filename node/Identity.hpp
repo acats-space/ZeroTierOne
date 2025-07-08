@@ -16,8 +16,8 @@
 
 #include "Address.hpp"
 #include "Buffer.hpp"
-#include "C25519.hpp"
 #include "Constants.hpp"
+#include "ECC.hpp"
 #include "SHA512.hpp"
 #include "Utils.hpp"
 
@@ -40,22 +40,22 @@ namespace ZeroTier {
  */
 class Identity {
   public:
-	Identity() : _privateKey((C25519::Private*)0)
+	Identity() : _privateKey((ECC::Private*)0)
 	{
 	}
 
-	Identity(const Identity& id) : _address(id._address), _publicKey(id._publicKey), _privateKey((id._privateKey) ? new C25519::Private(*(id._privateKey)) : (C25519::Private*)0)
+	Identity(const Identity& id) : _address(id._address), _publicKey(id._publicKey), _privateKey((id._privateKey) ? new ECC::Private(*(id._privateKey)) : (ECC::Private*)0)
 	{
 	}
 
-	Identity(const char* str) : _privateKey((C25519::Private*)0)
+	Identity(const char* str) : _privateKey((ECC::Private*)0)
 	{
 		if (! fromString(str)) {
 			throw ZT_EXCEPTION_INVALID_SERIALIZED_DATA_INVALID_TYPE;
 		}
 	}
 
-	template <unsigned int C> Identity(const Buffer<C>& b, unsigned int startAt = 0) : _privateKey((C25519::Private*)0)
+	template <unsigned int C> Identity(const Buffer<C>& b, unsigned int startAt = 0) : _privateKey((ECC::Private*)0)
 	{
 		deserialize(b, startAt);
 	}
@@ -63,7 +63,7 @@ class Identity {
 	~Identity()
 	{
 		if (_privateKey) {
-			Utils::burn(_privateKey, sizeof(C25519::Private));
+			Utils::burn(_privateKey, sizeof(ECC::Private));
 			delete _privateKey;
 		}
 	}
@@ -74,13 +74,13 @@ class Identity {
 		_publicKey = id._publicKey;
 		if (id._privateKey) {
 			if (! _privateKey) {
-				_privateKey = new C25519::Private();
+				_privateKey = new ECC::Private();
 			}
 			*_privateKey = *(id._privateKey);
 		}
 		else {
 			delete _privateKey;
-			_privateKey = (C25519::Private*)0;
+			_privateKey = (ECC::Private*)0;
 		}
 		return *this;
 	}
@@ -104,7 +104,7 @@ class Identity {
 	 */
 	inline bool hasPrivate() const
 	{
-		return (_privateKey != (C25519::Private*)0);
+		return (_privateKey != (ECC::Private*)0);
 	}
 
 	/**
@@ -116,7 +116,7 @@ class Identity {
 	{
 		uint8_t address[ZT_ADDRESS_LENGTH];
 		_address.copyTo(address, ZT_ADDRESS_LENGTH);
-		SHA384(sha384buf, address, ZT_ADDRESS_LENGTH, _publicKey.data, ZT_C25519_PUBLIC_KEY_LEN);
+		SHA384(sha384buf, address, ZT_ADDRESS_LENGTH, _publicKey.data, ZT_ECC_PUBLIC_KEY_SET_LEN);
 	}
 
 	/**
@@ -128,7 +128,7 @@ class Identity {
 	inline bool sha512PrivateKey(void* sha) const
 	{
 		if (_privateKey) {
-			SHA512(sha, _privateKey->data, ZT_C25519_PRIVATE_KEY_LEN);
+			SHA512(sha, _privateKey->data, ZT_ECC_PRIVATE_KEY_SET_LEN);
 			return true;
 		}
 		return false;
@@ -140,10 +140,10 @@ class Identity {
 	 * @param data Data to sign
 	 * @param len Length of data
 	 */
-	inline C25519::Signature sign(const void* data, unsigned int len) const
+	inline ECC::Signature sign(const void* data, unsigned int len) const
 	{
 		if (_privateKey) {
-			return C25519::sign(*_privateKey, _publicKey, data, len);
+			return ECC::sign(*_privateKey, _publicKey, data, len);
 		}
 		throw ZT_EXCEPTION_PRIVATE_KEY_REQUIRED;
 	}
@@ -159,10 +159,10 @@ class Identity {
 	 */
 	inline bool verify(const void* data, unsigned int len, const void* signature, unsigned int siglen) const
 	{
-		if (siglen != ZT_C25519_SIGNATURE_LEN) {
+		if (siglen != ZT_ECC_SIGNATURE_LEN) {
 			return false;
 		}
-		return C25519::verify(_publicKey, data, len, signature);
+		return ECC::verify(_publicKey, data, len, signature);
 	}
 
 	/**
@@ -173,9 +173,9 @@ class Identity {
 	 * @param signature Signature
 	 * @return True if signature validates and data integrity checks
 	 */
-	inline bool verify(const void* data, unsigned int len, const C25519::Signature& signature) const
+	inline bool verify(const void* data, unsigned int len, const ECC::Signature& signature) const
 	{
-		return C25519::verify(_publicKey, data, len, signature);
+		return ECC::verify(_publicKey, data, len, signature);
 	}
 
 	/**
@@ -190,7 +190,7 @@ class Identity {
 	inline bool agree(const Identity& id, void* const key) const
 	{
 		if (_privateKey) {
-			C25519::agree(*_privateKey, id._publicKey, key, ZT_SYMMETRIC_KEY_SIZE);
+			ECC::agree(*_privateKey, id._publicKey, key, ZT_SYMMETRIC_KEY_SIZE);
 			return true;
 		}
 		return false;
@@ -215,10 +215,10 @@ class Identity {
 	{
 		_address.appendTo(b);
 		b.append((uint8_t)0);	// C25519/Ed25519 identity type
-		b.append(_publicKey.data, ZT_C25519_PUBLIC_KEY_LEN);
+		b.append(_publicKey.data, ZT_ECC_PUBLIC_KEY_SET_LEN);
 		if ((_privateKey) && (includePrivate)) {
-			b.append((unsigned char)ZT_C25519_PRIVATE_KEY_LEN);
-			b.append(_privateKey->data, ZT_C25519_PRIVATE_KEY_LEN);
+			b.append((unsigned char)ZT_ECC_PRIVATE_KEY_SET_LEN);
+			b.append(_privateKey->data, ZT_ECC_PRIVATE_KEY_SET_LEN);
 		}
 		else {
 			b.append((unsigned char)0);
@@ -240,7 +240,7 @@ class Identity {
 	template <unsigned int C> inline unsigned int deserialize(const Buffer<C>& b, unsigned int startAt = 0)
 	{
 		delete _privateKey;
-		_privateKey = (C25519::Private*)0;
+		_privateKey = (ECC::Private*)0;
 
 		unsigned int p = startAt;
 
@@ -251,17 +251,17 @@ class Identity {
 			throw ZT_EXCEPTION_INVALID_SERIALIZED_DATA_INVALID_TYPE;
 		}
 
-		memcpy(_publicKey.data, b.field(p, ZT_C25519_PUBLIC_KEY_LEN), ZT_C25519_PUBLIC_KEY_LEN);
-		p += ZT_C25519_PUBLIC_KEY_LEN;
+		memcpy(_publicKey.data, b.field(p, ZT_ECC_PUBLIC_KEY_SET_LEN), ZT_ECC_PUBLIC_KEY_SET_LEN);
+		p += ZT_ECC_PUBLIC_KEY_SET_LEN;
 
 		unsigned int privateKeyLength = (unsigned int)b[p++];
 		if (privateKeyLength) {
-			if (privateKeyLength != ZT_C25519_PRIVATE_KEY_LEN) {
+			if (privateKeyLength != ZT_ECC_PRIVATE_KEY_SET_LEN) {
 				throw ZT_EXCEPTION_INVALID_SERIALIZED_DATA_INVALID_CRYPTOGRAPHIC_TOKEN;
 			}
-			_privateKey = new C25519::Private();
-			memcpy(_privateKey->data, b.field(p, ZT_C25519_PRIVATE_KEY_LEN), ZT_C25519_PRIVATE_KEY_LEN);
-			p += ZT_C25519_PRIVATE_KEY_LEN;
+			_privateKey = new ECC::Private();
+			memcpy(_privateKey->data, b.field(p, ZT_ECC_PRIVATE_KEY_SET_LEN), ZT_ECC_PRIVATE_KEY_SET_LEN);
+			p += ZT_ECC_PRIVATE_KEY_SET_LEN;
 		}
 
 		return (p - startAt);
@@ -290,7 +290,7 @@ class Identity {
 	/**
 	 * @return C25519 public key
 	 */
-	inline const C25519::Public& publicKey() const
+	inline const ECC::Public& publicKey() const
 	{
 		return _publicKey;
 	}
@@ -298,15 +298,15 @@ class Identity {
 	/**
 	 * @return C25519 key pair (only returns valid pair if private key is present in this Identity object)
 	 */
-	inline const C25519::Pair privateKeyPair() const
+	inline const ECC::Pair privateKeyPair() const
 	{
-		C25519::Pair pair;
+		ECC::Pair pair;
 		pair.pub = _publicKey;
 		if (_privateKey) {
 			pair.priv = *_privateKey;
 		}
 		else {
-			memset(pair.priv.data, 0, ZT_C25519_PRIVATE_KEY_LEN);
+			memset(pair.priv.data, 0, ZT_ECC_PRIVATE_KEY_SET_LEN);
 		}
 		return pair;
 	}
@@ -321,11 +321,11 @@ class Identity {
 
 	inline bool operator==(const Identity& id) const
 	{
-		return ((_address == id._address) && (memcmp(_publicKey.data, id._publicKey.data, ZT_C25519_PUBLIC_KEY_LEN) == 0));
+		return ((_address == id._address) && (memcmp(_publicKey.data, id._publicKey.data, ZT_ECC_PUBLIC_KEY_SET_LEN) == 0));
 	}
 	inline bool operator<(const Identity& id) const
 	{
-		return ((_address < id._address) || ((_address == id._address) && (memcmp(_publicKey.data, id._publicKey.data, ZT_C25519_PUBLIC_KEY_LEN) < 0)));
+		return ((_address < id._address) || ((_address == id._address) && (memcmp(_publicKey.data, id._publicKey.data, ZT_ECC_PUBLIC_KEY_SET_LEN) < 0)));
 	}
 	inline bool operator!=(const Identity& id) const
 	{
@@ -346,8 +346,8 @@ class Identity {
 
   private:
 	Address _address;
-	C25519::Public _publicKey;
-	C25519::Private* _privateKey;
+	ECC::Public _publicKey;
+	ECC::Private* _privateKey;
 };
 
 }	// namespace ZeroTier

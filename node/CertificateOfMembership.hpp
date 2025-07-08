@@ -16,9 +16,9 @@
 
 #include "Address.hpp"
 #include "Buffer.hpp"
-#include "C25519.hpp"
 #include "Constants.hpp"
 #include "Credential.hpp"
+#include "ECC.hpp"
 #include "Identity.hpp"
 #include "Utils.hpp"
 
@@ -241,7 +241,7 @@ class CertificateOfMembership : public Credential {
 		}
 		_signedBy.appendTo(b);
 		if (_signedBy) {
-			b.append(_signature.data, ZT_C25519_SIGNATURE_LEN);
+			b.append(_signature.data, ZT_ECC_SIGNATURE_LEN);
 		}
 	}
 
@@ -283,8 +283,8 @@ class CertificateOfMembership : public Credential {
 		p += ZT_ADDRESS_LENGTH;
 
 		if (_signedBy) {
-			memcpy(_signature.data, b.field(p, ZT_C25519_SIGNATURE_LEN), ZT_C25519_SIGNATURE_LEN);
-			p += ZT_C25519_SIGNATURE_LEN;
+			memcpy(_signature.data, b.field(p, ZT_ECC_SIGNATURE_LEN), ZT_ECC_SIGNATURE_LEN);
+			p += ZT_ECC_SIGNATURE_LEN;
 		}
 
 		return (p - startAt);
@@ -305,7 +305,7 @@ class CertificateOfMembership : public Credential {
 				return false;
 			}
 		}
-		return (memcmp(_signature.data, c._signature.data, ZT_C25519_SIGNATURE_LEN) == 0);
+		return (memcmp(_signature.data, c._signature.data, ZT_ECC_SIGNATURE_LEN) == 0);
 	}
 	inline bool operator!=(const CertificateOfMembership& c) const
 	{
@@ -329,7 +329,7 @@ class CertificateOfMembership : public Credential {
 	Address _signedBy;
 	_Qualifier _qualifiers[ZT_NETWORK_COM_MAX_QUALIFIERS];
 	unsigned int _qualifierCount;
-	C25519::Signature _signature;
+	ECC::Signature _signature;
 };
 
 }	// namespace ZeroTier

@@ -11,30 +11,71 @@
  */
 /****/
 
-#ifndef ZT_C25519_HPP
-#define ZT_C25519_HPP
+/*
+ * This file defines the elliptic curve crypto used for ZeroTier V1. The normal
+ * public version uses C25519 and Ed25519, while the FIPS version uses NIST.
+ * FIPS builds are completely incompatible with regular ZeroTier, but that's
+ * fine since FIPS users typically want a fully isolated private network. If you
+ * are not such a user you probably don't want this.
+ */
+
+#ifndef ZT_ECC_HPP
+#define ZT_ECC_HPP
 
 #include "Utils.hpp"
 
-namespace ZeroTier {
+#ifdef ZT_FIPS
 
-#define ZT_C25519_PUBLIC_KEY_LEN  64
-#define ZT_C25519_PRIVATE_KEY_LEN 64
-#define ZT_C25519_SIGNATURE_LEN	  96
+/* FIPS140/NIST ECC cryptography */
+/* Note that to be FIPS we also need to link against a FIPS-certified library. */
 
-/**
- * A combined Curve25519 ECDH and Ed25519 signature engine
- */
-class C25519 {
+#include <openssl/bn.h>
+#include <openssl/ec.h>
+#include <openssl/err.h>
+#include <openssl/evp.h>
+#include <openssl/pem.h>
+
+#define ZT_ECC_EPHEMERAL_PUBLIC_KEY_LEN 97		 /* Single ECC P-384 key */
+#define ZT_ECC_PUBLIC_KEY_SET_LEN		(97 * 2) /* Two ECC P-384 keys */
+#define ZT_ECC_PRIVATE_KEY_SET_LEN		(48 * 2) /* Two ECC P-384 secret keys */
+#define ZT_ECC_SIGNATURE_LEN			96		 /* NIST P-384 ECDSA signature */
+
+class ECC {
   public:
 	struct Public {
-		uint8_t data[ZT_C25519_PUBLIC_KEY_LEN];
+		uint8_t data[ZT_ECC_PUBLIC_KEY_SET_LEN];
 	};
 	struct Private {
-		uint8_t data[ZT_C25519_PRIVATE_KEY_LEN];
+		uint8_t data[ZT_ECC_PRIVATE_KEY_SET_LEN];
 	};
 	struct Signature {
-		uint8_t data[ZT_C25519_SIGNATURE_LEN];
+		uint8_t data[ZT_ECC_SIGNATURE_LEN];
+	};
+	struct Pair {
+		Public pub;
+		Private priv;
+	};
+};
+
+#else	// Curve25519 / Ed25519
+
+namespace ZeroTier {
+
+#define ZT_ECC_EPHEMERAL_PUBLIC_KEY_LEN 32 /* Single C25519 ECDH key */
+#define ZT_ECC_PUBLIC_KEY_SET_LEN		64 /* C25519 and Ed25519 keys */
+#define ZT_ECC_PRIVATE_KEY_SET_LEN		64 /* C25519 and Ed25519 secret keys */
+#define ZT_ECC_SIGNATURE_LEN			96 /* Ed25519 signature plus (not necessary) hash */
+
+class ECC {
+  public:
+	struct Public {
+		uint8_t data[ZT_ECC_PUBLIC_KEY_SET_LEN];
+	};
+	struct Private {
+		uint8_t data[ZT_ECC_PRIVATE_KEY_SET_LEN];
+	};
+	struct Signature {
+		uint8_t data[ZT_ECC_SIGNATURE_LEN];
 	};
 	struct Pair {
 		Public pub;
@@ -42,12 +83,12 @@ class C25519 {
 	};
 
 	/**
-	 * Generate a C25519 elliptic curve key pair
+	 * Generate an elliptic curve key pair
 	 */
 	static inline Pair generate()
 	{
 		Pair kp;
-		Utils::getSecureRandom(kp.priv.data, ZT_C25519_PRIVATE_KEY_LEN);
+		Utils::getSecureRandom(kp.priv.data, ZT_ECC_PRIVATE_KEY_SET_LEN);
 		_calcPubDH(kp);
 		_calcPubED(kp);
 		return kp;
@@ -70,7 +111,7 @@ class C25519 {
 	{
 		Pair kp;
 		void* const priv = (void*)kp.priv.data;
-		Utils::getSecureRandom(priv, ZT_C25519_PRIVATE_KEY_LEN);
+		Utils::getSecureRandom(priv, ZT_ECC_PRIVATE_KEY_SET_LEN);
 		_calcPubED(kp);	  // do Ed25519 key -- bytes 32-63 of pub and priv
 		do {
 			++(((uint64_t*)priv)[1]);
@@ -180,5 +221,7 @@ class C25519 {
 };
 
 }	// namespace ZeroTier
+
+#endif
 
 #endif
