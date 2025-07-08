@@ -96,9 +96,6 @@
     <ClCompile Include="..\..\osdep\OSUtils.cpp">
       <Filter>Source Files\osdep</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\node\C25519.cpp">
-      <Filter>Source Files\node</Filter>
-    </ClCompile>
     <ClCompile Include="..\..\node\CertificateOfMembership.cpp">
       <Filter>Source Files\node</Filter>
     </ClCompile>
@@ -295,6 +292,9 @@
       <Filter>Source Files\node</Filter>
     </ClCompile>
     <ClCompile Include="..\..\node\PacketMultiplexer.cpp">
+      <Filter>Source Files\node</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\node\ECC.cpp">
       <Filter>Source Files\node</Filter>
     </ClCompile>
   </ItemGroup>

@@ -26,6 +26,7 @@
 #include "node/Constants.hpp"
 
 #ifdef __WINDOWS__
+// clang-format off
 #include <winsock2.h>
 #include <windows.h>
 #include <tchar.h>
@@ -40,6 +41,7 @@
 #include "windows/ZeroTierOne/ServiceInstaller.h"
 #include "windows/ZeroTierOne/ServiceBase.h"
 #include "windows/ZeroTierOne/ZeroTierOneService.h"
+// clang-format on
 #else
 #include <unistd.h>
 #include <pwd.h>
