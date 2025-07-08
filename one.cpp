@@ -88,8 +88,10 @@
 
 #include "service/OneService.hpp"
 
+#include "diagnostic/diagnostic_schema_embed.h"
 #include "diagnostic/dump_sections.hpp"
 #include "diagnostic/dump_interfaces.hpp"
+#include "diagnostic/node_state_json.hpp"
 
 #include <nlohmann/json.hpp>
 
@@ -131,7 +133,7 @@ static void cliPrintHelp(const char *pn,FILE *out)
 	fprintf(out,"Available switches:" ZT_EOL_S);
 	fprintf(out,"  -h                      - Display this help" ZT_EOL_S);
 	fprintf(out,"  -v                      - Show version" ZT_EOL_S);
-	fprintf(out,"  -j                      - Display full raw JSON output" ZT_EOL_S);
+	fprintf(out,"  -j                      - Display full raw JSON output (see diagnostic/diagnostic_output.md for schema)" ZT_EOL_S);
 	fprintf(out,"  -D<path>                - ZeroTier home path for parameter auto-detect" ZT_EOL_S);
 	fprintf(out,"  -p<port>                - HTTP port (default: auto)" ZT_EOL_S);
 	fprintf(out,"  -T<token>               - Authentication token (default: auto)" ZT_EOL_S);
@@ -148,12 +150,16 @@ static void cliPrintHelp(const char *pn,FILE *out)
 	fprintf(out,"  orbit <world ID> <seed> - Join a moon via any member root" ZT_EOL_S);
 	fprintf(out,"  deorbit <world ID>      - Leave a moon" ZT_EOL_S);
 	fprintf(out,"  dump                    - Debug settings dump for support" ZT_EOL_S);
+	fprintf(out,"  dump -j                 - Export full node state as JSON (see diagnostic/diagnostic_output.md and diagnostic/diagnostic_schema.json for details)" ZT_EOL_S);
+	fprintf(out,"  diagnostic              - Export full node state as JSON (see diagnostic/diagnostic_output.md and diagnostic/diagnostic_schema.json for details)" ZT_EOL_S);
+	fprintf(out,"  diagnostic --schema      - Print the JSON schema for diagnostic output" ZT_EOL_S);
 	fprintf(out,ZT_EOL_S"Available settings:" ZT_EOL_S);
 	fprintf(out,"  Settings to use with [get/set] may include property names from " ZT_EOL_S);
 	fprintf(out,"  the JSON output of \"zerotier-cli -j listnetworks\". Additionally, " ZT_EOL_S);
 	fprintf(out,"  (ip, ip4, ip6, ip6plane, and ip6prefix can be used). For instance:" ZT_EOL_S);
 	fprintf(out,"  zerotier-cli get <network ID> ip6plane will return the 6PLANE address" ZT_EOL_S);
 	fprintf(out,"  assigned to this node." ZT_EOL_S);
+	fprintf(out,ZT_EOL_S"For details on the diagnostic JSON output, see diagnostic/diagnostic_output.md and diagnostic/diagnostic_schema.json." ZT_EOL_S);
 }
 
 static std::string cliFixJsonCRs(const std::string &s)
@@ -1098,6 +1104,18 @@ static int cli(int argc,char **argv)
 			printf("%u %s %s" ZT_EOL_S,scode,command.c_str(),responseBody.c_str());
 			return 1;
 		}
+	} else if (command == "dump" && json) {
+		// New JSON node state output
+		std::map<std::string, std::string> requestHeaders, responseHeaders;
+		std::string responseBody;
+		write_node_state_json(addr, homeDir, requestHeaders, responseHeaders, responseBody);
+		return 0;
+	} else if (command == "diagnostic") {
+		// New JSON node state output
+		std::map<std::string, std::string> requestHeaders, responseHeaders;
+		std::string responseBody;
+		write_node_state_json(addr, homeDir, requestHeaders, responseHeaders, responseBody);
+		return 0;
 	} else if (command == "dump") {
 		std::stringstream dump;
 		dump << "platform: ";
@@ -1150,6 +1168,11 @@ static int cli(int argc,char **argv)
 		}
 
 		fprintf(stdout, "%s", dump.str().c_str());
+		return 0;
+	} else if (command == "diagnostic" && arg1 == "--schema") {
+		// Print the embedded JSON schema to stdout
+		fwrite(ZT_DIAGNOSTIC_SCHEMA_JSON, 1, ZT_DIAGNOSTIC_SCHEMA_JSON_LEN, stdout);
+		fputc('\n', stdout);
 		return 0;
 	} else {
 		cliPrintHelp(argv[0],stderr);

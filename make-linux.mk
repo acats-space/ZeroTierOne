@@ -376,8 +376,8 @@ from_builder:	FORCE
 	ln -sf zerotier-one zerotier-idtool
 	ln -sf zerotier-one zerotier-cli
 
-zerotier-one: $(CORE_OBJS) $(ONE_OBJS) one.o diagnostic/dump_sections.o diagnostic/dump_interfaces_linux.o
-	$(CXX) $(CXXFLAGS) $(LDFLAGS) -o zerotier-one $(CORE_OBJS) $(ONE_OBJS) one.o diagnostic/dump_sections.o diagnostic/dump_interfaces_linux.o $(LDLIBS)
+zerotier-one: $(CORE_OBJS) $(ONE_OBJS) diagnostic/dump_sections.o diagnostic/dump_interfaces_linux.o one.o diagnostic/node_state_json.o diagnostic/node_state_sections.o diagnostic/node_state_interfaces_linux.o
+	$(CXX) $(CXXFLAGS) $(LDFLAGS) -o zerotier-one $(CORE_OBJS) $(ONE_OBJS) diagnostic/dump_sections.o diagnostic/dump_interfaces_linux.o one.o diagnostic/node_state_json.o diagnostic/node_state_sections.o diagnostic/node_state_interfaces_linux.o $(LDLIBS)
 
 zerotier-idtool: zerotier-one
 	ln -sf zerotier-one zerotier-idtool
@@ -404,8 +404,8 @@ manpages:	FORCE
 
 doc:	manpages
 
-clean: FORCE
-	rm -rf *.a *.so *.o node/*.o controller/*.o osdep/*.o service/*.o ext/http-parser/*.o ext/miniupnpc/*.o ext/libnatpmp/*.o $(CORE_OBJS) $(ONE_OBJS) zerotier-one zerotier-idtool zerotier-cli zerotier-selftest build-* ZeroTierOneInstaller-* *.deb *.rpm .depend debian/files debian/zerotier-one*.debhelper debian/zerotier-one.substvars debian/*.log debian/zerotier-one doc/node_modules ext/misc/*.o debian/.debhelper debian/debhelper-build-stamp docker/zerotier-one rustybits/target
+clean:
+	rm -rf *.a *.so *.o node/*.o controller/*.o osdep/*.o service/*.o ext/http-parser/*.o ext/miniupnpc/*.o ext/libnatpmp/*.o $(CORE_OBJS) $(ONE_OBJS) zerotier-one zerotier-idtool zerotier-selftest zerotier-cli build-* ZeroTierOneInstaller-* *.deb *.rpm .depend debian/files debian/zerotier-one*.debhelper debian/zerotier-one.substvars debian/*.log debian/zerotier-one doc/node_modules ext/misc/*.o debian/.debhelper debian/debhelper-build-stamp docker/zerotier-one rustybits/target diagnostic/*.o
 
 distclean:	clean
 

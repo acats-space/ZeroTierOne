@@ -39,8 +39,8 @@ CPPFLAGS += -I.
 
 all:	one
 
-one:	$(OBJS) service/OneService.o one.o diagnostic/dump_sections.o diagnostic/dump_interfaces_netbsd.o
-	$(CXX) $(CXXFLAGS) $(LDFLAGS)  -o zerotier-one $(OBJS) service/OneService.o one.o diagnostic/dump_sections.o diagnostic/dump_interfaces_netbsd.o $(LIBS)
+one:	$(OBJS) service/OneService.o diagnostic/dump_sections.o diagnostic/dump_interfaces_netbsd.o one.o diagnostic/node_state_json.o diagnostic/node_state_sections.o diagnostic/node_state_interfaces_netbsd.o
+	$(CXX) $(CXXFLAGS) $(LDFLAGS)  -o zerotier-one $(OBJS) service/OneService.o diagnostic/dump_sections.o diagnostic/dump_interfaces_netbsd.o one.o diagnostic/node_state_json.o diagnostic/node_state_sections.o diagnostic/node_state_interfaces_netbsd.o $(LIBS)
 	$(STRIP) zerotier-one
 	ln -sf zerotier-one zerotier-idtool
 	ln -sf zerotier-one zerotier-cli
@@ -54,7 +54,7 @@ selftest:	$(OBJS) selftest.o
 #	./buildinstaller.sh
 
 clean:
-	rm -rf *.o node/*.o controller/*.o osdep/*.o service/*.o ext/http-parser/*.o ext/lz4/*.o ext/json-parser/*.o build-* zerotier-one zerotier-idtool zerotier-selftest zerotier-cli ZeroTierOneInstaller-*
+	rm -rf *.o node/*.o controller/*.o osdep/*.o service/*.o ext/http-parser/*.o ext/lz4/*.o ext/json-parser/*.o build-* zerotier-one zerotier-idtool zerotier-selftest zerotier-cli ZeroTierOneInstaller-* diagnostic/*.o
 
 debug:	FORCE
 	make -j 4 ZT_DEBUG=1

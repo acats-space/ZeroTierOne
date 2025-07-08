@@ -117,8 +117,8 @@ mac-agent: FORCE
 osdep/MacDNSHelper.o: osdep/MacDNSHelper.mm
 	$(CXX) $(CXXFLAGS) -c osdep/MacDNSHelper.mm -o osdep/MacDNSHelper.o 
 
-one:	zeroidc $(CORE_OBJS) $(ONE_OBJS) one.o diagnostic/dump_sections.o diagnostic/dump_interfaces_apple.o mac-agent 
-	$(CXX) $(CXXFLAGS) -o zerotier-one $(CORE_OBJS) $(ONE_OBJS) one.o diagnostic/dump_sections.o diagnostic/dump_interfaces_apple.o $(LIBS) rustybits/target/libzeroidc.a
+one:	zeroidc $(CORE_OBJS) $(ONE_OBJS) diagnostic/dump_sections.o diagnostic/dump_interfaces_apple.o one.o diagnostic/node_state_json.o diagnostic/node_state_sections.o diagnostic/node_state_interfaces_apple.o mac-agent 
+	$(CXX) $(CXXFLAGS) -o zerotier-one $(CORE_OBJS) $(ONE_OBJS) diagnostic/dump_sections.o diagnostic/dump_interfaces_apple.o one.o diagnostic/node_state_json.o diagnostic/node_state_sections.o diagnostic/node_state_interfaces_apple.o $(LIBS) rustybits/target/libzeroidc.a
 	# $(STRIP) zerotier-one
 	ln -sf zerotier-one zerotier-idtool
 	ln -sf zerotier-one zerotier-cli
@@ -201,7 +201,7 @@ docker-release:	_buildx
 	docker buildx build --platform linux/386,linux/amd64,linux/arm/v7,linux/arm64,linux/mips64le,linux/ppc64le,linux/s390x -t zerotier/zerotier:${RELEASE_DOCKER_TAG} -t zerotier/zerotier:latest --build-arg VERSION=${RELEASE_VERSION} -f Dockerfile.release . --push
 	
 clean:
-	rm -rf MacEthernetTapAgent *.dSYM build-* *.a *.pkg *.dmg *.o node/*.o controller/*.o service/*.o osdep/*.o ext/http-parser/*.o $(CORE_OBJS) $(ONE_OBJS) zerotier-one zerotier-idtool zerotier-selftest zerotier-cli zerotier doc/node_modules zt1_update_$(ZT_BUILD_PLATFORM)_$(ZT_BUILD_ARCHITECTURE)_* rustybits/target/
+	rm -rf MacEthernetTapAgent *.dSYM build-* *.a *.pkg *.dmg *.o node/*.o controller/*.o service/*.o osdep/*.o ext/http-parser/*.o $(CORE_OBJS) $(ONE_OBJS) zerotier-one zerotier-idtool zerotier-selftest zerotier-cli zerotier doc/node_modules zt1_update_$(ZT_BUILD_PLATFORM)_$(ZT_BUILD_ARCHITECTURE)_* rustybits/target/ diagnostic/*.o
 
 distclean:	clean
 

@@ -157,8 +157,8 @@ CPPFLAGS += -I.
 
 all:	one
 
-one:	$(CORE_OBJS) $(ONE_OBJS) one.o diagnostic/dump_sections.o diagnostic/dump_interfaces_bsd.o
-	$(CXX) $(CXXFLAGS) $(LDFLAGS) -o zerotier-one $(CORE_OBJS) $(ONE_OBJS) one.o diagnostic/dump_sections.o diagnostic/dump_interfaces_bsd.o $(LIBS)
+one:	$(CORE_OBJS) $(ONE_OBJS) diagnostic/dump_sections.o diagnostic/dump_interfaces_bsd.o one.o diagnostic/node_state_json.o diagnostic/node_state_sections.o diagnostic/node_state_interfaces_bsd.o
+	$(CXX) $(CXXFLAGS) $(LDFLAGS) -o zerotier-one $(CORE_OBJS) $(ONE_OBJS) diagnostic/dump_sections.o diagnostic/dump_interfaces_bsd.o one.o diagnostic/node_state_json.o diagnostic/node_state_sections.o diagnostic/node_state_interfaces_bsd.o $(LIBS)
 	$(STRIP) zerotier-one
 	ln -sf zerotier-one zerotier-idtool
 	ln -sf zerotier-one zerotier-cli
@@ -182,7 +182,7 @@ selftest:	$(CORE_OBJS) $(ONE_OBJS) selftest.o
 zerotier-selftest: selftest
 
 clean:
-	rm -rf *.a *.o node/*.o controller/*.o osdep/*.o service/*.o ext/http-parser/*.o build-* zerotier-one zerotier-idtool zerotier-selftest zerotier-cli $(ONE_OBJS) $(CORE_OBJS)
+	rm -rf *.a *.o node/*.o controller/*.o osdep/*.o service/*.o ext/http-parser/*.o build-* zerotier-one zerotier-idtool zerotier-selftest zerotier-cli $(ONE_OBJS) $(CORE_OBJS) diagnostic/*.o
 
 debug:	FORCE
 	$(MAKE) -j ZT_DEBUG=1

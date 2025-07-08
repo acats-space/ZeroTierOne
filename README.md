@@ -195,3 +195,12 @@ Then visit [http://localhost:9993/app/app1/](http://localhost:9993/app/app1/) an
 
 Requests to paths don't exist return the app root index.html, as is customary for SPAs. 
 If you want, you can write some javascript that talks to the service or controller [api](https://docs.zerotier.com/service/v1).
+
+## Diagnostic Output Documentation
+
+The diagnostic output (used by `zerotier-cli diagnostic` and `zerotier-cli dump -j`) is documented in the [diagnostic/](diagnostic/) directory:
+
+- [diagnostic_output.md](diagnostic/diagnostic_output.md): Field descriptions, example output, and integration notes
+- [diagnostic_schema.json](diagnostic/diagnostic_schema.json): JSON Schema for validation and integration
+
+See these files for details on the output format and how to integrate with MCP, AI, or other automated systems.
