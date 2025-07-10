@@ -60,6 +60,7 @@
 #include <sys/socket.h>
 #include <ifaddrs.h>
 #include <sys/ioctl.h>
+#include "osdep/ExtOsdep.hpp"
 #ifndef ZT_NO_CAPABILITIES
 #include <linux/capability.h>
 #include <linux/securebits.h>
@@ -2113,6 +2114,17 @@ int main(int argc,char **argv)
 	signal(SIGQUIT,&_sighandlerQuit);
 	signal(SIGINT,&_sighandlerQuit);
 
+#ifdef ZT_EXTOSDEP
+	int extosdepFd1 = -1;
+	int extosdepFd2 = -1;
+	for(int i=1;i<argc;++i) {
+		if (argv[i][0] != '-' || argv[i][1] != 'x') continue;
+		if (sscanf(argv[i] + 2, "%d,%d", &extosdepFd1, &extosdepFd2) == 2) break;
+		fprintf(stderr, "bad extosdepFd\n");
+		return 1;
+	}
+#endif // ZT_EXTOSDEP
+
 	/* Ensure that there are no inherited file descriptors open from a previous
 	 * incarnation. This is a hack to ensure that GitHub issue #61 or variants
 	 * of it do not return, and should not do anything otherwise bad. */
@@ -2120,8 +2132,12 @@ int main(int argc,char **argv)
 		int mfd = STDIN_FILENO;
 		if (STDOUT_FILENO > mfd) mfd = STDOUT_FILENO;
 		if (STDERR_FILENO > mfd) mfd = STDERR_FILENO;
-		for(int f=mfd+1;f<1024;++f)
+		for(int f=mfd+1;f<1024;++f) {
+#ifdef ZT_EXTOSDEP
+			if (f == extosdepFd1 || f == extosdepFd2) continue;
+#endif // ZT_EXTOSDEP
 			::close(f);
+		}
 	}
 
 	bool runAsDaemon = false;
@@ -2227,7 +2243,9 @@ int main(int argc,char **argv)
 						return 0;
 					} break;
 #endif // __WINDOWS__
-
+#ifdef ZT_EXTOSDEP
+				case 'x': break;
+#endif
 				case 'h':
 				case '?':
 				default:
@@ -2356,6 +2374,15 @@ int main(int argc,char **argv)
 		}
 	}
 #endif // __UNIX_LIKE__
+
+#ifdef ZT_EXTOSDEP
+	if (extosdepFd1 < 0) {
+		fprintf(stderr, "no extosdepFd specified\n");
+		OSUtils::rm(pidPath.c_str());
+		return 1;
+	}
+	ExtOsdep::init(extosdepFd1, extosdepFd2);
+#endif
 
 	_OneServiceRunner thr(argv[0],homeDir,port);
 	thr.threadMain();

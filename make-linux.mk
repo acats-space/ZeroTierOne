@@ -16,8 +16,13 @@ DESTDIR?=
 EXTRA_DEPS?=
 
 include objects.mk
-ONE_OBJS+=osdep/LinuxEthernetTap.o
-ONE_OBJS+=osdep/LinuxNetLink.o
+ifeq ($(ZT_EXTOSDEP),1)
+	ONE_OBJS+=osdep/ExtOsdep.o
+	override DEFS += -DZT_EXTOSDEP
+else
+	ONE_OBJS+=osdep/LinuxEthernetTap.o
+	ONE_OBJS+=osdep/LinuxNetLink.o
+endif
 
 # for central controller buildsk
 TIMESTAMP=$(shell date +"%Y%m%d%H%M")
@@ -275,6 +280,10 @@ ifeq ($(CC_MACH),loongarch64)
 	override DEFS+=-DZT_NO_TYPE_PUNNING
 endif
 
+ifeq ($(ZT_EXTOSDEP), 1)
+	ZT_SSO_SUPPORTED=0
+endif
+
 # Fail if system architecture could not be determined
 ifeq ($(ZT_ARCHITECTURE),999)
 ERR=$(error FATAL: architecture could not be determined from $(CC) -dumpmachine: $(CC_MACH))
@@ -339,8 +348,12 @@ ifeq ($(ZT_ARCHITECTURE),3)
 		override CXXFLAGS+=-march=armv5t -mfloat-abi=soft -msoft-float -mno-unaligned-access -marm
 		ZT_USE_ARM32_NEON_ASM_CRYPTO=0
 	else
-		override CFLAGS+=-mfloat-abi=hard -march=armv6zk -marm -mfpu=vfp -mno-unaligned-access -mtp=cp15 -mcpu=arm1176jzf-s
-		override CXXFLAGS+=-mfloat-abi=hard -march=armv6zk -marm -mfpu=vfp -fexceptions -mno-unaligned-access -mtp=cp15 -mcpu=arm1176jzf-s
+		ifeq ($(ZT_EXTOSDEP), 0)
+			override CFLAGS+=-mfloat-abi=hard -march=armv6zk -marm -mfpu=vfp -mno-unaligned-access -mtp=cp15 -mcpu=arm1176jzf-s
+			override CXXFLAGS+=-mfloat-abi=hard -march=armv6zk -marm -mfpu=vfp -fexceptions -mno-unaligned-access -mtp=cp15 -mcpu=arm1176jzf-s
+		else
+			override DEFS+=-DZT_NO_PEER_METRICS
+		endif
 		ZT_USE_ARM32_NEON_ASM_CRYPTO=0
 	endif
 endif
