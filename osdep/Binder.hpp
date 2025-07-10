@@ -22,11 +22,11 @@
 #include <string.h>
 
 #ifdef __WINDOWS__
-#include <shlobj.h>
-#include <winsock2.h>
-#include <windows.h>
 #include <iphlpapi.h>
 #include <netioapi.h>
+#include <shlobj.h>
+#include <windows.h>
+#include <winsock2.h>
 #else
 #include <ifaddrs.h>
 #include <sys/socket.h>
@@ -34,13 +34,13 @@
 #include <sys/wait.h>
 #include <unistd.h>
 #ifdef __LINUX__
+#include <linux/if_addr.h>
 #include <net/if.h>
 #include <sys/ioctl.h>
-#include <linux/if_addr.h>
 #endif
 #endif
 
-#if (defined(__unix__) || defined(__APPLE__)) && !defined(__LINUX__) && !defined(ZT_SDK)
+#if (defined(__unix__) || defined(__APPLE__)) && ! defined(__LINUX__) && ! defined(ZT_SDK)
 #include <net/if.h>
 #if TARGET_OS_OSX
 #include <netinet6/in6_var.h>
@@ -131,7 +131,7 @@ class Binder {
 	template <typename PHY_HANDLER_TYPE, typename INTERFACE_CHECKER> void refresh(Phy<PHY_HANDLER_TYPE>& phy, unsigned int* ports, unsigned int portCount, const std::vector<InetAddress> explicitBind, INTERFACE_CHECKER& ifChecker)
 	{
 		std::map<InetAddress, std::string> localIfAddrs;
-		PhySocket *udps;
+		PhySocket* udps;
 		Mutex::Lock _l(_lock);
 		bool interfacesEnumerated = true;
 
@@ -232,7 +232,7 @@ class Binder {
 						}
 					}
 
-					if ( (flags & IFA_F_TEMPORARY) != 0) {
+					if ((flags & IFA_F_TEMPORARY) != 0) {
 						continue;
 					}
 					if (devname) {
@@ -318,11 +318,11 @@ class Binder {
 			//
 			(void)gotViaProc;
 
-#if ! defined(__ANDROID__)	  // getifaddrs() freeifaddrs() not available on Android
+#if ! defined(__ANDROID__)	 // getifaddrs() freeifaddrs() not available on Android
 			if (! gotViaProc) {
 				struct ifaddrs* ifatbl = (struct ifaddrs*)0;
 				struct ifaddrs* ifa;
-#if (defined(__unix__) || defined(__APPLE__)) && !defined(__LINUX__) && !defined(ZT_SDK)
+#if (defined(__unix__) || defined(__APPLE__)) && ! defined(__LINUX__) && ! defined(ZT_SDK)
 				// set up an IPv6 socket so we can check the state of interfaces via SIOCGIFAFLAG_IN6
 				int infoSock = socket(AF_INET6, SOCK_DGRAM, 0);
 #endif
@@ -331,7 +331,7 @@ class Binder {
 					while (ifa) {
 						if ((ifa->ifa_name) && (ifa->ifa_addr)) {
 							InetAddress ip = *(ifa->ifa_addr);
-#if (defined(__unix__) || defined(__APPLE__)) && !defined(__LINUX__) && !defined(ZT_SDK) && TARGET_OS_OSX
+#if (defined(__unix__) || defined(__APPLE__)) && ! defined(__LINUX__) && ! defined(ZT_SDK) && TARGET_OS_OSX
 							// Check if the address is an IPv6 Temporary Address, macOS/BSD version
 							if (ifa->ifa_addr->sa_family == AF_INET6) {
 								struct sockaddr_in6* sa6 = (struct sockaddr_in6*)ifa->ifa_addr;
@@ -379,7 +379,7 @@ class Binder {
 				else {
 					interfacesEnumerated = false;
 				}
-#if (defined(__unix__) || defined(__APPLE__)) && !defined(__LINUX__) && !defined(ZT_SDK)
+#if (defined(__unix__) || defined(__APPLE__)) && ! defined(__LINUX__) && ! defined(ZT_SDK)
 				close(infoSock);
 #endif
 			}

@@ -1,8 +1,8 @@
 CC=clang
 CXX=clang++
-TOPDIR=$(shell PWD)
+TOPDIR=$(shell pwd)
 
-INCLUDES=-I$(shell PWD)/rustybits/target -isystem $(TOPDIR)/ext  -I$(TOPDIR)/ext/prometheus-cpp-lite-1.0/core/include -I$(TOPDIR)/ext-prometheus-cpp-lite-1.0/3rdparty/http-client-lite/include -I$(TOPDIR)/ext/prometheus-cpp-lite-1.0/simpleapi/include
+INCLUDES=-I$(shell pwd)/rustybits/target -isystem $(TOPDIR)/ext  -I$(TOPDIR)/ext/prometheus-cpp-lite-1.0/core/include -I$(TOPDIR)/ext-prometheus-cpp-lite-1.0/3rdparty/http-client-lite/include -I$(TOPDIR)/ext/prometheus-cpp-lite-1.0/simpleapi/include
 DEFS=
 LIBS=
 ARCH_FLAGS=-arch x86_64 -arch arm64 
@@ -57,9 +57,9 @@ ONE_OBJS+=ext/libnatpmp/natpmp.o ext/libnatpmp/getgateway.o ext/miniupnpc/connec
 ifeq ($(ZT_CONTROLLER),1)
 	MACOS_VERSION_MIN=10.15
 	override CXXFLAGS=$(CFLAGS) -std=c++17 -stdlib=libc++
-	LIBS+=-L/usr/local/opt/libpqxx/lib -L/usr/local/opt/libpq/lib -L/usr/local/opt/openssl/lib/ -lpqxx -lpq -lssl -lcrypto -lgssapi_krb5 ext/redis-plus-plus-1.1.1/install/macos/lib/libredis++.a ext/hiredis-0.14.1/lib/macos/libhiredis.a
+	LIBS+=-L/opt/homebrew/lib -L/usr/local/opt/libpqxx/lib -L/usr/local/opt/libpq/lib -L/usr/local/opt/openssl/lib/ -lpqxx -lpq -lssl -lcrypto -lgssapi_krb5 ext/redis-plus-plus-1.1.1/install/macos/lib/libredis++.a ext/hiredis-0.14.1/lib/macos/libhiredis.a rustybits/target/libsmeeclient.a
 	DEFS+=-DZT_CONTROLLER_USE_LIBPQ -DZT_CONTROLLER_USE_REDIS -DZT_CONTROLLER 
-	INCLUDES+=-I/usr/local/opt/libpq/include -I/usr/local/opt/libpqxx/include -Iext/hiredis-0.14.1/include/ -Iext/redis-plus-plus-1.1.1/install/macos/include/sw/
+	INCLUDES+=-I/opt/homebrew/include -I/opt/homebrew/opt/libpq/include -I/usr/local/opt/libpq/include -I/usr/local/opt/libpqxx/include -Iext/hiredis-0.14.1/include/ -Iext/redis-plus-plus-1.1.1/install/macos/include/sw/ -Irustybits/target/
 else
 	MACOS_VERSION_MIN=10.13
 endif
@@ -83,7 +83,7 @@ ifeq ($(ZT_DEBUG),1)
 	# C25519 in particular is almost UNUSABLE in heavy testing without it.
 node/Salsa20.o node/SHA512.o node/C25519.o node/Poly1305.o: CFLAGS = -Wall -O2 -g $(INCLUDES) $(DEFS)
 else
-	CFLAGS?=-Ofast -fstack-protector-strong
+	CFLAGS?=-O3 -fstack-protector-strong
 	CFLAGS+=$(ARCH_FLAGS) -Wall -flto -fPIE -mmacosx-version-min=$(MACOS_VERSION_MIN) -DNDEBUG -Wno-unused-private-field $(INCLUDES) $(DEFS)
 	STRIP=strip
 	EXTRA_CARGO_FLAGS=--release
@@ -109,13 +109,17 @@ ext/x64-salsa2012-asm/salsa2012.o:
 	as -arch x86_64 -mmacosx-version-min=$(MACOS_VERSION_MIN) -o ext/x64-salsa2012-asm/salsa2012.o ext/x64-salsa2012-asm/salsa2012.s
 
 mac-agent: FORCE
-	$(CC) -Ofast $(ARCH_FLAGS) -mmacosx-version-min=$(MACOS_VERSION_MIN) -o MacEthernetTapAgent osdep/MacEthernetTapAgent.c
+	$(CC) -O3 $(ARCH_FLAGS) -mmacosx-version-min=$(MACOS_VERSION_MIN) -o MacEthernetTapAgent osdep/MacEthernetTapAgent.c
 	$(CODESIGN) -f --options=runtime -s $(CODESIGN_APP_CERT) MacEthernetTapAgent
 
 osdep/MacDNSHelper.o: osdep/MacDNSHelper.mm
 	$(CXX) $(CXXFLAGS) -c osdep/MacDNSHelper.mm -o osdep/MacDNSHelper.o 
 
+ifeq ($(ZT_CONTROLLER),1)
+one:	zeroidc smeeclient $(CORE_OBJS) $(ONE_OBJS) one.o mac-agent 
+else
 one:	zeroidc $(CORE_OBJS) $(ONE_OBJS) one.o mac-agent 
+endif
 	$(CXX) $(CXXFLAGS) -o zerotier-one $(CORE_OBJS) $(ONE_OBJS) one.o $(LIBS) rustybits/target/libzeroidc.a
 	# $(STRIP) zerotier-one
 	ln -sf zerotier-one zerotier-idtool
@@ -125,6 +129,15 @@ one:	zeroidc $(CORE_OBJS) $(ONE_OBJS) one.o mac-agent
 zerotier-one: one
 
 zeroidc: rustybits/target/libzeroidc.a
+
+ifeq ($(ZT_CONTROLLER),1)
+smeeclient: rustybits/target/libsmeeclient.a
+
+rustybits/target/libsmeeclient.a:	FORCE
+	cd rustybits && MACOSX_DEPLOYMENT_TARGET=$(MACOS_VERSION_MIN) cargo build -p smeeclient --target=x86_64-apple-darwin $(EXTRA_CARGO_FLAGS)
+	cd rustybits && MACOSX_DEPLOYMENT_TARGET=$(MACOS_VERSION_MIN) cargo build -p smeeclient --target=aarch64-apple-darwin $(EXTRA_CARGO_FLAGS)
+	cd rustybits && lipo -create target/x86_64-apple-darwin/$(RUST_VARIANT)/libsmeeclient.a target/aarch64-apple-darwin/$(RUST_VARIANT)/libsmeeclient.a -output target/libsmeeclient.a
+endif
 
 rustybits/target/libzeroidc.a:	FORCE
 	cd rustybits && MACOSX_DEPLOYMENT_TARGET=$(MACOS_VERSION_MIN) cargo build -p zeroidc --target=x86_64-apple-darwin $(EXTRA_CARGO_FLAGS)
@@ -194,6 +207,13 @@ controller-run: _buildx FORCE
 central-controller-docker: _buildx FORCE
 	docker buildx build --platform linux/arm64,linux/amd64 --no-cache -t registry.zerotier.com/zerotier-central/ztcentral-controller:${TIMESTAMP} -f ext/central-controller-docker/Dockerfile --build-arg git_branch=$(shell git name-rev --name-only HEAD) . --push
 	@echo Image: registry.zerotier.com/zerotier-central/ztcentral-controller:${TIMESTAMP}
+
+centralv2-controller-docker: _buildx FORCE
+	docker buildx build --platform linux/amd64,linux/arm64 --no-cache -t us-central1-docker.pkg.dev/zerotier-d648c7/central-v2/ztcentral-controller:${TIMESTAMP} -f ext/central-controller-docker/Dockerfile --build-arg git_branch=`git name-rev --name-only HEAD` . --push
+	@echo Image: us-central1-docker.pkg.dev/zerotier-d648c7/central-v2/ztcentral-controller:${TIMESTAMP} 
+
+docker-release:	_buildx
+	docker buildx build --platform linux/386,linux/amd64,linux/arm/v7,linux/arm64,linux/mips64le,linux/ppc64le,linux/s390x -t zerotier/zerotier:${RELEASE_DOCKER_TAG} -t zerotier/zerotier:latest --build-arg VERSION=${RELEASE_VERSION} -f Dockerfile.release . --push
 	
 clean:
 	rm -rf MacEthernetTapAgent *.dSYM build-* *.a *.pkg *.dmg *.o node/*.o controller/*.o service/*.o osdep/*.o ext/http-parser/*.o $(CORE_OBJS) $(ONE_OBJS) zerotier-one zerotier-idtool zerotier-selftest zerotier-cli zerotier doc/node_modules zt1_update_$(ZT_BUILD_PLATFORM)_$(ZT_BUILD_ARCHITECTURE)_* rustybits/target/

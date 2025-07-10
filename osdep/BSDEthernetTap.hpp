@@ -14,54 +14,58 @@
 #ifndef ZT_BSDETHERNETTAP_HPP
 #define ZT_BSDETHERNETTAP_HPP
 
+#include "../node/Constants.hpp"
+#include "../node/MAC.hpp"
+#include "../node/MulticastGroup.hpp"
+#include "EthernetTap.hpp"
+#include "Thread.hpp"
+
+#include <stdexcept>
 #include <stdio.h>
 #include <stdlib.h>
-
 #include <string>
+#include <thread>
 #include <vector>
-#include <stdexcept>
-
-#include "../node/Constants.hpp"
-#include "../node/MulticastGroup.hpp"
-#include "../node/MAC.hpp"
-#include "Thread.hpp"
-#include "EthernetTap.hpp"
 
 namespace ZeroTier {
 
-class BSDEthernetTap : public EthernetTap
-{
-public:
+class BSDEthernetTap : public EthernetTap {
+  public:
 	BSDEthernetTap(
-		const char *homePath,
-		const MAC &mac,
+		const char* homePath,
+		unsigned int concurrency,
+		bool pinning,
+		const MAC& mac,
 		unsigned int mtu,
 		unsigned int metric,
 		uint64_t nwid,
-		const char *friendlyName,
-		void (*handler)(void *,void *,uint64_t,const MAC &,const MAC &,unsigned int,unsigned int,const void *,unsigned int),
-		void *arg);
+		const char* friendlyName,
+		void (*handler)(void*, void*, uint64_t, const MAC&, const MAC&, unsigned int, unsigned int, const void*, unsigned int),
+		void* arg);
 
 	virtual ~BSDEthernetTap();
 
 	virtual void setEnabled(bool en);
 	virtual bool enabled() const;
-	virtual bool addIp(const InetAddress &ip);
-	virtual bool removeIp(const InetAddress &ip);
+	virtual bool addIp(const InetAddress& ip);
+	virtual bool removeIp(const InetAddress& ip);
 	virtual std::vector<InetAddress> ips() const;
-	virtual void put(const MAC &from,const MAC &to,unsigned int etherType,const void *data,unsigned int len);
+	virtual void put(const MAC& from, const MAC& to, unsigned int etherType, const void* data, unsigned int len);
 	virtual std::string deviceName() const;
-	virtual void setFriendlyName(const char *friendlyName);
-	virtual void scanMulticastGroups(std::vector<MulticastGroup> &added,std::vector<MulticastGroup> &removed);
+	virtual void setFriendlyName(const char* friendlyName);
+	virtual void scanMulticastGroups(std::vector<MulticastGroup>& added, std::vector<MulticastGroup>& removed);
 	virtual void setMtu(unsigned int mtu);
-	virtual void setDns(const char *domain, const std::vector<InetAddress> &servers) {}
+	virtual void setDns(const char* domain, const std::vector<InetAddress>& servers)
+	{
+	}
 
-	void threadMain()
-		throw();
+	void threadMain() throw();
 
-private:
-	void (*_handler)(void *,void *,uint64_t,const MAC &,const MAC &,unsigned int,unsigned int,const void *,unsigned int);
-	void *_arg;
+  private:
+	void (*_handler)(void*, void*, uint64_t, const MAC&, const MAC&, unsigned int, unsigned int, const void*, unsigned int);
+	void* _arg;
+	unsigned int _concurrency;
+	bool _pinning;
 	uint64_t _nwid;
 	Thread _thread;
 	std::string _dev;
@@ -73,8 +77,9 @@ private:
 	volatile bool _enabled;
 	mutable std::vector<InetAddress> _ifaddrs;
 	mutable uint64_t _lastIfAddrsUpdate;
+	std::vector<std::thread> _rxThreads;
 };
 
-} // namespace ZeroTier
+}	// namespace ZeroTier
 
 #endif

@@ -71,7 +71,7 @@ else
 	override CFLAGS+=-Wall -Wno-deprecated -pthread $(INCLUDES) -DNDEBUG $(DEFS)
 	CXXFLAGS?=-O3 -fstack-protector
 	override CXXFLAGS+=-Wall -Wno-deprecated -std=c++17 -pthread $(INCLUDES) -DNDEBUG $(DEFS)
-	LDFLAGS=-pie -Wl,-z,relro,-z,now
+	LDFLAGS?=-pie -Wl,-z,relro,-z,now
 	ZT_CARGO_FLAGS=--release
 endif
 
@@ -364,7 +364,7 @@ override CFLAGS+=-fPIC -fPIE
 override CXXFLAGS+=-fPIC -fPIE
 
 # Non-executable stack
-override ASFLAGS+=--noexecstack
+override LDFLAGS+=-Wl,-z,noexecstack
 
 .PHONY: all
 all:	one
@@ -430,6 +430,10 @@ central-controller:	FORCE
 central-controller-docker: _buildx FORCE
 	docker buildx build --platform linux/amd64,linux/arm64 --no-cache -t registry.zerotier.com/zerotier-central/ztcentral-controller:${TIMESTAMP} -f ext/central-controller-docker/Dockerfile --build-arg git_branch=`git name-rev --name-only HEAD` . --push
 	@echo Image: registry.zerotier.com/zerotier-central/ztcentral-controller:${TIMESTAMP}
+
+centralv2-controller-docker: _buildx FORCE
+	docker buildx build --platform linux/amd64,linux/arm64 --no-cache -t us-central1-docker.pkg.dev/zerotier-421eb9/docker-images/ztcentral-controller:$(shell git rev-parse --short HEAD) -f ext/central-controller-docker/Dockerfile --build-arg git_branch=`git name-rev --name-only HEAD` . --push
+	@echo Image: us-central1-docker.pkg.dev/zerotier-421eb9/docker-images/ztcentral-controller:$(shell git rev-parse --short HEAD)
 
 debug:	FORCE
 	make ZT_DEBUG=1 one
