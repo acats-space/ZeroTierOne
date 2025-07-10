@@ -2993,6 +2993,12 @@ class OneServiceImpl : public OneService {
 		}
 		Metrics::udp_recv += len;
 		const uint64_t now = OSUtils::now();
+
+		char buf[255];
+		auto x = reinterpret_cast<const InetAddress*>(from);
+		fprintf(stderr, "phyOnDatagram: len %lu - from %s - scope: %d\n", len, x->toString(buf), x->ipScope());
+
+
 		if ((len >= 16) && (reinterpret_cast<const InetAddress*>(from)->ipScope() == InetAddress::IP_SCOPE_GLOBAL)) {
 			_lastDirectReceiveFromGlobal = now;
 		}
