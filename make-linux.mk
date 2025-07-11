@@ -312,6 +312,14 @@ ifeq ($(ZT_SSO_SUPPORTED), 1)
 	endif
 endif
 
+OTEL_VERSION=1.21.0
+ifeq (${ZT_OTEL},1)
+	OTEL_INSTALL_DIR=ext/opentelemetry-cpp-${OTEL_VERSION}/localinstall
+	DEFS+=-DZT_OTEL
+	INCLUDES+=-I${OTEL_INSTALL_DIR}/include -Iext/opentelemetry-cpp/exporters/otlp/include
+	LIBS+=-L${OTEL_INSTALL_DIR}/lib -lopentelemetry_exporter_in_memory_metric -lopentelemetry_exporter_in_memory -lopentelemetry_exporter_ostream_logs -lopentelemetry_exporter_ostream_metrics -lopentelemetry_exporter_ostream_span -lopentelemetry_trace -lopentelemetry_common -lopentelemetry_resources -lopentelemetry_logs -lopentelemetry_metrics -lopentelemetry_version
+endif
+
 # Disable software updates by default on Linux since that is normally done with package management
 override DEFS+=-DZT_BUILD_PLATFORM=1 -DZT_BUILD_ARCHITECTURE=$(ZT_ARCHITECTURE) -DZT_SOFTWARE_UPDATE_DEFAULT="\"disable\""
 
@@ -416,6 +424,15 @@ manpages:	FORCE
 	cd doc ; ./build.sh
 
 doc:	manpages
+
+ifeq (${ZT_OTEL},1)
+otel:
+	cd ext/opentelemetry-cpp-1.21.0 && mkdir -p localinstall && cmake -B build -S . -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=$(shell pwd)/ext/opentelemetry-cpp-1.21.0/localinstall -DBUILD_TESTING=OFF -DOPENTELEMETRY_INSTALL=ON -DWITH_BENCHMARK=OFF -DWITH_EXAMPLES=OFF -DWITH_FUNC_TESTS=OFF
+	cd ext/opentelemetry-cpp-1.21.0/build && make install
+else
+otel:
+	@echo "OpenTelemetry not enabled, skipping build."
+endif
 
 clean: FORCE
 	rm -rf *.a *.so *.o node/*.o controller/*.o osdep/*.o service/*.o ext/http-parser/*.o ext/miniupnpc/*.o ext/libnatpmp/*.o $(CORE_OBJS) $(ONE_OBJS) zerotier-one zerotier-idtool zerotier-cli zerotier-selftest build-* ZeroTierOneInstaller-* *.deb *.rpm .depend debian/files debian/zerotier-one*.debhelper debian/zerotier-one.substvars debian/*.log debian/zerotier-one doc/node_modules ext/misc/*.o debian/.debhelper debian/debhelper-build-stamp docker/zerotier-one rustybits/target
