@@ -13,10 +13,60 @@
 
 #include "NetworkConfig.hpp"
 
+#include "DNS.hpp"
+
 #include <algorithm>
 #include <stdint.h>
 
 namespace ZeroTier {
+
+NetworkConfig::NetworkConfig()
+	: networkId(0)
+	, timestamp(0)
+	, credentialTimeMaxDelta(0)
+	, revision(0)
+	, issuedTo()
+	, remoteTraceTarget()
+	, flags(0)
+	, remoteTraceLevel(Trace::LEVEL_NORMAL)
+	, mtu(0)
+	, multicastLimit(0)
+	, specialistCount(0)
+	, routeCount(0)
+	, staticIpCount(0)
+	, ruleCount(0)
+	, capabilityCount(0)
+	, tagCount(0)
+	, certificateOfOwnershipCount(0)
+	, capabilities()
+	, tags()
+	, certificatesOfOwnership()
+	, type(ZT_NETWORK_TYPE_PRIVATE)
+	, dnsCount(0)
+	, ssoEnabled(false)
+	, authenticationURL()
+	, authenticationExpiryTime(0)
+	, issuerURL()
+	, centralAuthURL()
+	, ssoNonce()
+	, ssoState()
+	, ssoClientID()
+{
+	name[0] = 0;
+	memset(specialists, 0, sizeof(uint64_t) * ZT_MAX_NETWORK_SPECIALISTS);
+	memset(routes, 0, sizeof(ZT_VirtualNetworkRoute) * ZT_MAX_NETWORK_ROUTES);
+	memset(staticIps, 0, sizeof(InetAddress) * ZT_MAX_ZT_ASSIGNED_ADDRESSES);
+	memset(rules, 0, sizeof(ZT_VirtualNetworkRule) * ZT_MAX_NETWORK_RULES);
+	memset(&dns, 0, sizeof(ZT_VirtualNetworkDNS));
+	memset(authenticationURL, 0, sizeof(authenticationURL));
+	memset(issuerURL, 0, sizeof(issuerURL));
+	memset(centralAuthURL, 0, sizeof(centralAuthURL));
+	memset(ssoNonce, 0, sizeof(ssoNonce));
+	memset(ssoState, 0, sizeof(ssoState));
+	memset(ssoClientID, 0, sizeof(ssoClientID));
+	strncpy(ssoProvider, "default", sizeof(ssoProvider));
+	ssoProvider[sizeof(ssoProvider) - 1] = 0;
+}
 
 bool NetworkConfig::toDictionary(Dictionary<ZT_NETWORKCONFIG_DICT_CAPACITY>& d, bool includeLegacy) const
 {

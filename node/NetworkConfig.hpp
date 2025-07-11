@@ -16,23 +16,15 @@
 
 #include "../include/ZeroTierOne.h"
 #include "Address.hpp"
-#include "Buffer.hpp"
 #include "Capability.hpp"
 #include "CertificateOfMembership.hpp"
 #include "CertificateOfOwnership.hpp"
-#include "Constants.hpp"
-#include "DNS.hpp"
 #include "Dictionary.hpp"
 #include "Hashtable.hpp"
-#include "Identity.hpp"
 #include "InetAddress.hpp"
-#include "MulticastGroup.hpp"
 #include "Tag.hpp"
 #include "Trace.hpp"
-#include "Utils.hpp"
 
-#include <algorithm>
-#include <stdexcept>
 #include <stdint.h>
 #include <stdlib.h>
 #include <string.h>
@@ -79,14 +71,16 @@
 #define ZT_NETWORKCONFIG_SPECIALIST_TYPE_ACTIVE_BRIDGE 0x0000020000000000ULL
 
 /**
- * Anchors are stable devices on this network that can act like roots when none are up
- */
-#define ZT_NETWORKCONFIG_SPECIALIST_TYPE_ANCHOR 0x0000040000000000ULL
-
-/**
  * Designated multicast replicators replicate multicast in place of sender-side replication
+ *
+ * This is currently not really used.
  */
 #define ZT_NETWORKCONFIG_SPECIALIST_TYPE_MULTICAST_REPLICATOR 0x0000080000000000ULL
+
+/**
+ * Designated per-network relays
+ */
+#define ZT_NETWORKCONFIG_SPECIALIST_TYPE_NETWORK_RELAY 0x0000100000000000ULL
 
 namespace ZeroTier {
 
@@ -250,52 +244,7 @@ namespace ZeroTier {
  */
 class NetworkConfig {
   public:
-	NetworkConfig()
-		: networkId(0)
-		, timestamp(0)
-		, credentialTimeMaxDelta(0)
-		, revision(0)
-		, issuedTo()
-		, remoteTraceTarget()
-		, flags(0)
-		, remoteTraceLevel(Trace::LEVEL_NORMAL)
-		, mtu(0)
-		, multicastLimit(0)
-		, specialistCount(0)
-		, routeCount(0)
-		, staticIpCount(0)
-		, ruleCount(0)
-		, capabilityCount(0)
-		, tagCount(0)
-		, certificateOfOwnershipCount(0)
-		, capabilities()
-		, tags()
-		, certificatesOfOwnership()
-		, type(ZT_NETWORK_TYPE_PRIVATE)
-		, dnsCount(0)
-		, ssoEnabled(false)
-		, authenticationURL()
-		, authenticationExpiryTime(0)
-		, issuerURL()
-		, centralAuthURL()
-		, ssoNonce()
-		, ssoState()
-		, ssoClientID()
-	{
-		name[0] = 0;
-		memset(specialists, 0, sizeof(uint64_t) * ZT_MAX_NETWORK_SPECIALISTS);
-		memset(routes, 0, sizeof(ZT_VirtualNetworkRoute) * ZT_MAX_NETWORK_ROUTES);
-		memset(staticIps, 0, sizeof(InetAddress) * ZT_MAX_ZT_ASSIGNED_ADDRESSES);
-		memset(rules, 0, sizeof(ZT_VirtualNetworkRule) * ZT_MAX_NETWORK_RULES);
-		memset(&dns, 0, sizeof(ZT_VirtualNetworkDNS));
-		memset(authenticationURL, 0, sizeof(authenticationURL));
-		memset(issuerURL, 0, sizeof(issuerURL));
-		memset(centralAuthURL, 0, sizeof(centralAuthURL));
-		memset(ssoNonce, 0, sizeof(ssoNonce));
-		memset(ssoState, 0, sizeof(ssoState));
-		memset(ssoClientID, 0, sizeof(ssoClientID));
-		strncpy(ssoProvider, "default", sizeof(ssoProvider));
-	}
+	NetworkConfig();
 
 	/**
 	 * Write this network config to a dictionary for transport
@@ -397,17 +346,6 @@ class NetworkConfig {
 		return false;
 	}
 
-	inline std::vector<Address> anchors() const
-	{
-		std::vector<Address> r;
-		for (unsigned int i = 0; i < specialistCount; ++i) {
-			if ((specialists[i] & ZT_NETWORKCONFIG_SPECIALIST_TYPE_ANCHOR) != 0) {
-				r.push_back(Address(specialists[i]));
-			}
-		}
-		return r;
-	}
-
 	inline std::vector<Address> multicastReplicators() const
 	{
 		std::vector<Address> r;
@@ -444,7 +382,7 @@ class NetworkConfig {
 	{
 		std::vector<Address> r;
 		for (unsigned int i = 0; i < specialistCount; ++i) {
-			if ((specialists[i] & (ZT_NETWORKCONFIG_SPECIALIST_TYPE_ANCHOR | ZT_NETWORKCONFIG_SPECIALIST_TYPE_MULTICAST_REPLICATOR)) != 0) {
+			if ((specialists[i] & (ZT_NETWORKCONFIG_SPECIALIST_TYPE_NETWORK_RELAY | ZT_NETWORKCONFIG_SPECIALIST_TYPE_MULTICAST_REPLICATOR)) != 0) {
 				r.push_back(Address(specialists[i]));
 			}
 		}
@@ -455,7 +393,7 @@ class NetworkConfig {
 	{
 		unsigned int c = 0;
 		for (unsigned int i = 0; i < specialistCount; ++i) {
-			if ((specialists[i] & (ZT_NETWORKCONFIG_SPECIALIST_TYPE_ANCHOR | ZT_NETWORKCONFIG_SPECIALIST_TYPE_MULTICAST_REPLICATOR)) != 0) {
+			if ((specialists[i] & (ZT_NETWORKCONFIG_SPECIALIST_TYPE_NETWORK_RELAY | ZT_NETWORKCONFIG_SPECIALIST_TYPE_MULTICAST_REPLICATOR)) != 0) {
 				ac[c++] = specialists[i];
 			}
 		}
@@ -465,7 +403,7 @@ class NetworkConfig {
 	inline void alwaysContactAddresses(Hashtable<Address, std::vector<InetAddress> >& a) const
 	{
 		for (unsigned int i = 0; i < specialistCount; ++i) {
-			if ((specialists[i] & (ZT_NETWORKCONFIG_SPECIALIST_TYPE_ANCHOR | ZT_NETWORKCONFIG_SPECIALIST_TYPE_MULTICAST_REPLICATOR)) != 0) {
+			if ((specialists[i] & (ZT_NETWORKCONFIG_SPECIALIST_TYPE_NETWORK_RELAY | ZT_NETWORKCONFIG_SPECIALIST_TYPE_MULTICAST_REPLICATOR)) != 0) {
 				a[Address(specialists[i])];
 			}
 		}

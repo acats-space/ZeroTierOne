@@ -300,16 +300,6 @@ void Multicaster::send(void* tPtr, int64_t now, const SharedPtr<Network>& networ
 					}
 				}
 
-				std::vector<Address> anchors(network->config().anchors());
-				for (std::vector<Address>::const_iterator a(anchors.begin()); a != anchors.end(); ++a) {
-					if (*a != RR->identity.address()) {
-						explicitGatherPeers[numExplicitGatherPeers++] = *a;
-						if (numExplicitGatherPeers == 16) {
-							break;
-						}
-					}
-				}
-
 				for (unsigned int k = 0; k < numExplicitGatherPeers; ++k) {
 					const CertificateOfMembership* com = (network) ? ((network->config().com) ? &(network->config().com) : (const CertificateOfMembership*)0) : (const CertificateOfMembership*)0;
 					Packet outp(explicitGatherPeers[k], RR->identity.address(), Packet::VERB_MULTICAST_GATHER);
