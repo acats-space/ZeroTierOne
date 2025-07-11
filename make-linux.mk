@@ -317,7 +317,7 @@ ifeq (${ZT_OTEL},1)
 	OTEL_INSTALL_DIR=ext/opentelemetry-cpp-${OTEL_VERSION}/localinstall
 	DEFS+=-DZT_OTEL
 	INCLUDES+=-I${OTEL_INSTALL_DIR}/include -Iext/opentelemetry-cpp/exporters/otlp/include
-	LIBS+=-L${OTEL_INSTALL_DIR}/lib -lopentelemetry_exporter_in_memory_metric -lopentelemetry_exporter_in_memory -lopentelemetry_exporter_ostream_logs -lopentelemetry_exporter_ostream_metrics -lopentelemetry_exporter_ostream_span -lopentelemetry_trace -lopentelemetry_common -lopentelemetry_resources -lopentelemetry_logs -lopentelemetry_metrics -lopentelemetry_version
+	LDLIBS+=-L${OTEL_INSTALL_DIR}/lib -lopentelemetry_exporter_in_memory_metric -lopentelemetry_exporter_in_memory -lopentelemetry_exporter_ostream_logs -lopentelemetry_exporter_ostream_metrics -lopentelemetry_exporter_ostream_span -lopentelemetry_trace -lopentelemetry_common -lopentelemetry_resources -lopentelemetry_logs -lopentelemetry_metrics -lopentelemetry_version
 endif
 
 # Disable software updates by default on Linux since that is normally done with package management
