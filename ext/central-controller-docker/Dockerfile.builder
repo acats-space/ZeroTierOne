@@ -16,8 +16,16 @@ RUN apt -y install \
     postgresql-client \
     postgresql-client-common \
     curl \
+    libcurl4-openssl-dev \
     google-perftools \
     libgoogle-perftools-dev \
-    protobuf-compiler 
+    protobuf-compiler \
+    protobuf-compiler-grpc \
+    grpc-proto \
+    libgrpc++1.51 \
+    libgrpc++-dev \
+    libgrpc-dev \
+    libgrpc29
+
 
 RUN curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
