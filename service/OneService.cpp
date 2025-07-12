@@ -64,6 +64,8 @@
 #include "opentelemetry/sdk/resource/resource.h"
 #endif
 
+#include "opentelemetry/trace/provider.h"
+
 #if ZT_SSO_ENABLED
 #include <zeroidc.h>
 #endif
@@ -1836,7 +1838,14 @@ class OneServiceImpl : public OneService {
 		}
 
 		auto authCheck = [=](const httplib::Request& req, httplib::Response& res) {
+			auto provider = opentelemetry::trace::Provider::GetTracerProvider();
+			auto tracer = provider->GetTracer("http_control_plane");
+			auto span = tracer->StartSpan("http_control_plane::authCheck");
+			auto scope = tracer->WithActiveSpan(span);
+
 			if (req.path == "/metrics") {
+				auto mspan = tracer->StartSpan("http_control_plane::metricsAuth");
+				auto mscope = tracer->WithActiveSpan(mspan);
 				if (req.has_header("x-zt1-auth")) {
 					std::string token = req.get_header_value("x-zt1-auth");
 					if (token == _metricsToken || token == _authToken) {
@@ -1856,6 +1865,7 @@ class OneServiceImpl : public OneService {
 					}
 				}
 
+				span->SetAttribute("auth", "failed");
 				setContent(req, res, "{}");
 				res.status = 401;
 				return httplib::Server::HandlerResponse::Handled;
@@ -1912,9 +1922,13 @@ class OneServiceImpl : public OneService {
 					}
 				}
 
+				span->SetAttribute("ipAllowed", ipAllowed);
+
 				if (ipAllowed && isAuth) {
 					return httplib::Server::HandlerResponse::Unhandled;
 				}
+
+				span->SetAttribute("auth", "failed");
 				setContent(req, res, "{}");
 				res.status = 401;
 				return httplib::Server::HandlerResponse::Handled;
@@ -1922,6 +1936,11 @@ class OneServiceImpl : public OneService {
 		};
 
 		auto bondShow = [&, setContent](const httplib::Request& req, httplib::Response& res) {
+			auto provider = opentelemetry::trace::Provider::GetTracerProvider();
+			auto tracer = provider->GetTracer("http_control_plane");
+			auto span = tracer->StartSpan("http_control_plane::bondShow");
+			auto scope = tracer->WithActiveSpan(span);
+
 			if (! _node->bondController()->inUse()) {
 				setContent(req, res, "");
 				res.status = 400;
@@ -1960,6 +1979,11 @@ class OneServiceImpl : public OneService {
 		_controlPlaneV6.Get(bondShowPath, bondShow);
 
 		auto bondRotate = [&, setContent](const httplib::Request& req, httplib::Response& res) {
+			auto provider = opentelemetry::trace::Provider::GetTracerProvider();
+			auto tracer = provider->GetTracer("http_control_plane");
+			auto span = tracer->StartSpan("http_control_plane::bondRotate");
+			auto scope = tracer->WithActiveSpan(span);
+
 			if (! _node->bondController()->inUse()) {
 				setContent(req, res, "");
 				res.status = 400;
@@ -1988,6 +2012,11 @@ class OneServiceImpl : public OneService {
 		_controlPlaneV6.Put(bondRotatePath, bondRotate);
 
 		auto setMtu = [&, setContent](const httplib::Request& req, httplib::Response& res) {
+			auto provider = opentelemetry::trace::Provider::GetTracerProvider();
+			auto tracer = provider->GetTracer("http_control_plane");
+			auto span = tracer->StartSpan("http_control_plane::setMtu");
+			auto scope = tracer->WithActiveSpan(span);
+
 			if (! _node->bondController()->inUse()) {
 				setContent(req, res, "Bonding layer isn't active yet");
 				res.status = 400;
@@ -2012,6 +2041,11 @@ class OneServiceImpl : public OneService {
 		_controlPlaneV6.Put(setBondMtuPath, setMtu);
 
 		auto getConfig = [&, setContent](const httplib::Request& req, httplib::Response& res) {
+			auto provider = opentelemetry::trace::Provider::GetTracerProvider();
+			auto tracer = provider->GetTracer("http_control_plane");
+			auto span = tracer->StartSpan("http_control_plane::getConfig");
+			auto scope = tracer->WithActiveSpan(span);
+
 			std::string config;
 			{
 				Mutex::Lock lc(_localConfig_m);
@@ -2026,6 +2060,11 @@ class OneServiceImpl : public OneService {
 		_controlPlaneV6.Get(configPath, getConfig);
 
 		auto configPost = [&, setContent](const httplib::Request& req, httplib::Response& res) {
+			auto provider = opentelemetry::trace::Provider::GetTracerProvider();
+			auto tracer = provider->GetTracer("http_control_plane");
+			auto span = tracer->StartSpan("http_control_plane::configPost");
+			auto scope = tracer->WithActiveSpan(span);
+
 			json j(OSUtils::jsonParse(req.body));
 			if (j.is_object()) {
 				Mutex::Lock lcl(_localConfig_m);
@@ -2046,6 +2085,11 @@ class OneServiceImpl : public OneService {
 		_controlPlaneV6.Put(configPostPath, configPost);
 
 		auto healthGet = [&, setContent](const httplib::Request& req, httplib::Response& res) {
+			auto provider = opentelemetry::trace::Provider::GetTracerProvider();
+			auto tracer = provider->GetTracer("http_control_plane");
+			auto span = tracer->StartSpan("http_control_plane::healthGet");
+			auto scope = tracer->WithActiveSpan(span);
+
 			json out = json::object();
 
 			char tmp[256];
@@ -2068,6 +2112,11 @@ class OneServiceImpl : public OneService {
 		_controlPlaneV6.Get(healthPath, healthGet);
 
 		auto moonListGet = [&, setContent](const httplib::Request& req, httplib::Response& res) {
+			auto provider = opentelemetry::trace::Provider::GetTracerProvider();
+			auto tracer = provider->GetTracer("http_control_plane");
+			auto span = tracer->StartSpan("http_control_plane::moonListGet");
+			auto scope = tracer->WithActiveSpan(span);
+
 			std::vector<World> moons(_node->moons());
 
 			auto out = json::array();
@@ -2082,6 +2131,11 @@ class OneServiceImpl : public OneService {
 		_controlPlaneV6.Get(moonListPath, moonListGet);
 
 		auto moonGet = [&, setContent](const httplib::Request& req, httplib::Response& res) {
+			auto provider = opentelemetry::trace::Provider::GetTracerProvider();
+			auto tracer = provider->GetTracer("http_control_plane");
+			auto span = tracer->StartSpan("http_control_plane::moonGet");
+			auto scope = tracer->WithActiveSpan(span);
+
 			std::vector<World> moons(_node->moons());
 			auto input = req.matches[1];
 			auto out = json::object();
@@ -2098,6 +2152,11 @@ class OneServiceImpl : public OneService {
 		_controlPlaneV6.Get(moonPath, moonGet);
 
 		auto moonPost = [&, setContent](const httplib::Request& req, httplib::Response& res) {
+			auto provider = opentelemetry::trace::Provider::GetTracerProvider();
+			auto tracer = provider->GetTracer("http_control_plane");
+			auto span = tracer->StartSpan("http_control_plane::moonPost");
+			auto scope = tracer->WithActiveSpan(span);
+
 			auto input = req.matches[1];
 			uint64_t seed = 0;
 			try {
@@ -2141,6 +2200,11 @@ class OneServiceImpl : public OneService {
 		_controlPlaneV6.Put(moonPath, moonPost);
 
 		auto moonDelete = [&, setContent](const httplib::Request& req, httplib::Response& res) {
+			auto provider = opentelemetry::trace::Provider::GetTracerProvider();
+			auto tracer = provider->GetTracer("http_control_plane");
+			auto span = tracer->StartSpan("http_control_plane::moonDelete");
+			auto scope = tracer->WithActiveSpan(span);
+
 			auto input = req.matches[1];
 			uint64_t id = Utils::hexStrToU64(input.str().c_str());
 			auto out = json::object();
@@ -2151,6 +2215,11 @@ class OneServiceImpl : public OneService {
 		_controlPlane.Delete(moonPath, moonDelete);
 
 		auto networkListGet = [&, setContent](const httplib::Request& req, httplib::Response& res) {
+			auto provider = opentelemetry::trace::Provider::GetTracerProvider();
+			auto tracer = provider->GetTracer("http_control_plane");
+			auto span = tracer->StartSpan("http_control_plane::networkListGet");
+			auto scope = tracer->WithActiveSpan(span);
+
 			Mutex::Lock _l(_nets_m);
 			auto out = json::array();
 
@@ -2166,6 +2235,11 @@ class OneServiceImpl : public OneService {
 		_controlPlaneV6.Get(networkListPath, networkListGet);
 
 		auto networkGet = [&, setContent](const httplib::Request& req, httplib::Response& res) {
+			auto provider = opentelemetry::trace::Provider::GetTracerProvider();
+			auto tracer = provider->GetTracer("http_control_plane");
+			auto span = tracer->StartSpan("http_control_plane::networkGet");
+			auto scope = tracer->WithActiveSpan(span);
+
 			Mutex::Lock _l(_nets_m);
 
 			auto input = req.matches[1];
@@ -2184,6 +2258,11 @@ class OneServiceImpl : public OneService {
 		_controlPlaneV6.Get(networkPath, networkGet);
 
 		auto networkPost = [&, setContent](const httplib::Request& req, httplib::Response& res) {
+			auto provider = opentelemetry::trace::Provider::GetTracerProvider();
+			auto tracer = provider->GetTracer("http_control_plane");
+			auto span = tracer->StartSpan("http_control_plane::networkPost");
+			auto scope = tracer->WithActiveSpan(span);
+
 			auto input = req.matches[1];
 			uint64_t wantnw = Utils::hexStrToU64(input.str().c_str());
 			_node->join(wantnw, (void*)0, (void*)0);
@@ -2242,6 +2321,11 @@ class OneServiceImpl : public OneService {
 		_controlPlaneV6.Put(networkPath, networkPost);
 
 		auto networkDelete = [&, setContent](const httplib::Request& req, httplib::Response& res) {
+			auto provider = opentelemetry::trace::Provider::GetTracerProvider();
+			auto tracer = provider->GetTracer("http_control_plane");
+			auto span = tracer->StartSpan("http_control_plane::networkDelete");
+			auto scope = tracer->WithActiveSpan(span);
+
 			auto input = req.matches[1];
 			auto out = json::object();
 			ZT_VirtualNetworkList* nws = _node->networks();
@@ -2259,6 +2343,11 @@ class OneServiceImpl : public OneService {
 		_controlPlaneV6.Delete(networkPath, networkDelete);
 
 		auto peerListGet = [&, setContent](const httplib::Request& req, httplib::Response& res) {
+			auto provider = opentelemetry::trace::Provider::GetTracerProvider();
+			auto tracer = provider->GetTracer("http_control_plane");
+			auto span = tracer->StartSpan("http_control_plane::peerListGet");
+			auto scope = tracer->WithActiveSpan(span);
+
 			ZT_PeerList* pl = _node->peers();
 			auto out = nlohmann::json::array();
 
@@ -2279,6 +2368,11 @@ class OneServiceImpl : public OneService {
 		_controlPlaneV6.Get(peerListPath, peerListGet);
 
 		auto peerGet = [&, setContent](const httplib::Request& req, httplib::Response& res) {
+			auto provider = opentelemetry::trace::Provider::GetTracerProvider();
+			auto tracer = provider->GetTracer("http_control_plane");
+			auto span = tracer->StartSpan("http_control_plane::peerGet");
+			auto scope = tracer->WithActiveSpan(span);
+
 			ZT_PeerList* pl = _node->peers();
 
 			auto input = req.matches[1];
@@ -2301,6 +2395,11 @@ class OneServiceImpl : public OneService {
 		_controlPlaneV6.Get(peerPath, peerGet);
 
 		auto statusGet = [&, setContent](const httplib::Request& req, httplib::Response& res) {
+			auto provider = opentelemetry::trace::Provider::GetTracerProvider();
+			auto tracer = provider->GetTracer("http_control_plane");
+			auto span = tracer->StartSpan("http_control_plane::statusGet");
+			auto scope = tracer->WithActiveSpan(span);
+
 			ZT_NodeStatus status;
 			_node->status(&status);
 
@@ -2442,6 +2541,11 @@ class OneServiceImpl : public OneService {
 		_controlPlaneV6.Get(ssoPath, ssoGet);
 #endif
 		auto metricsGet = [this](const httplib::Request& req, httplib::Response& res) {
+			auto provider = opentelemetry::trace::Provider::GetTracerProvider();
+			auto tracer = provider->GetTracer("http_control_plane");
+			auto span = tracer->StartSpan("http_control_plane::metricsGet");
+			auto scope = tracer->WithActiveSpan(span);
+
 			std::string statspath = _homePath + ZT_PATH_SEPARATOR + "metrics.prom";
 			std::string metrics;
 			if (OSUtils::readFile(statspath.c_str(), metrics)) {
@@ -2456,6 +2560,11 @@ class OneServiceImpl : public OneService {
 		_controlPlaneV6.Get(metricsPath, metricsGet);
 
 		auto exceptionHandler = [&, setContent](const httplib::Request& req, httplib::Response& res, std::exception_ptr ep) {
+			auto provider = opentelemetry::trace::Provider::GetTracerProvider();
+			auto tracer = provider->GetTracer("http_control_plane");
+			auto span = tracer->StartSpan("http_control_plane::exceptionHandler");
+			auto scope = tracer->WithActiveSpan(span);
+
 			char buf[1024];
 			auto fmt = "{\"error\": %d, \"description\": \"%s\"}";
 			try {
