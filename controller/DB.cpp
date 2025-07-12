@@ -256,11 +256,6 @@ bool DB::get(const uint64_t networkId, nlohmann::json& network, const uint64_t m
 		member = m->second;
 	}
 
-	span->SetAttribute("authorized_member_count", info.authorizedMemberCount);
-	span->SetAttribute("allocated_ips", info.allocatedIps.size());
-	span->SetAttribute("total_member_count", info.totalMemberCount);
-	span->SetAttribute("most_recent_deauth_time", info.mostRecentDeauthTime);
-	span->SetAttribute("active_bridges", info.activeBridges.size());
 	return true;
 }
 
