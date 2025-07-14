@@ -394,13 +394,13 @@ override LDFLAGS+=-Wl,-z,noexecstack
 all:	one
 
 .PHONY: one
-one: zerotier-one zerotier-idtool zerotier-cli
+one: otel zerotier-one zerotier-idtool zerotier-cli
 
 from_builder:	FORCE
 	ln -sf zerotier-one zerotier-idtool
 	ln -sf zerotier-one zerotier-cli
 
-zerotier-one: otel $(CORE_OBJS) $(ONE_OBJS) one.o
+zerotier-one: $(CORE_OBJS) $(ONE_OBJS) one.o ext/${OTEL_INSTALL_DIR}/include/opentelemetry/version.h
 	$(CXX) $(CXXFLAGS) $(LDFLAGS) -o zerotier-one $(CORE_OBJS) $(ONE_OBJS) one.o $(LDLIBS)
 
 zerotier-idtool: zerotier-one
@@ -431,11 +431,13 @@ doc:	manpages
 ifeq (${ZT_OTEL},1)
 otel:
 	cd ext/opentelemetry-cpp-1.21.0 && mkdir -p localinstall && cmake -B build -S . -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=$(shell pwd)/ext/opentelemetry-cpp-1.21.0/localinstall -DBUILD_TESTING=OFF -DOPENTELEMETRY_INSTALL=ON -DWITH_BENCHMARK=OFF -DWITH_EXAMPLES=OFF -DWITH_FUNC_TESTS=OFF -DUSE_THIRDPARTY_LIBRARIES=ON -DWITH_OTLP_GRPC=ON -DWITH_OTLP_HTTP=OFF -DWITH_PROMETHEUS=OFF
-	cd ext/opentelemetry-cpp-1.21.0/build && make install
+	cd ext/opentelemetry-cpp-1.21.0/build && make -j4 install
 else
 otel:
-	@echo "OpenTelemetry not enabled, skipping build."
+	@echo "OpenTelemetry exporter not enabled, skipping build."
 endif
+
+ext/${OTEL_INSTALL_DIR}/include/opentelemetry/version.h: otel
 
 clean: FORCE
 	rm -rf *.a *.so *.o node/*.o controller/*.o osdep/*.o service/*.o ext/http-parser/*.o ext/miniupnpc/*.o ext/libnatpmp/*.o $(CORE_OBJS) $(ONE_OBJS) zerotier-one zerotier-idtool zerotier-cli zerotier-selftest build-* ZeroTierOneInstaller-* *.deb *.rpm .depend debian/files debian/zerotier-one*.debhelper debian/zerotier-one.substvars debian/*.log debian/zerotier-one doc/node_modules ext/misc/*.o debian/.debhelper debian/debhelper-build-stamp docker/zerotier-one rustybits/target ext/opentelemetry-cpp-${OTEL_VERSION}/localinstall ext/opentelemetry-cpp-${OTEL_VERSION}/build
@@ -458,7 +460,7 @@ _buildx:
 	@echo docker buildx inspect --bootstrap
 
 central-controller:	FORCE
-	make -j4 ZT_CONTROLLER=1 ZT_OTEL=1 one
+	make ZT_OTEL=1 otel && make -j4 ZT_CONTROLLER=1 ZT_OTEL=1 one
 
 central-controller-docker: _buildx FORCE
 	docker buildx build --platform linux/amd64,linux/arm64 --no-cache -t registry.zerotier.com/zerotier-central/ztcentral-controller:${TIMESTAMP} -f ext/central-controller-docker/Dockerfile --build-arg git_branch=`git name-rev --name-only HEAD` . --push
