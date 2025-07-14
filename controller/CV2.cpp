@@ -414,6 +414,7 @@ AuthInfo CV2::getSSOAuthInfo(const nlohmann::json& member, const std::string& re
 	}
 	catch (std::exception& e) {
 		fprintf(stderr, "ERROR: Error updating member on load for network %s: %s\n", networkId.c_str(), e.what());
+		span->SetStatus(opentelemetry::trace::StatusCode::kError, e.what());
 	}
 
 	return info;   // std::string(authenticationURL);
@@ -548,6 +549,7 @@ void CV2::initializeNetworks()
 	}
 	catch (std::exception& e) {
 		fprintf(stderr, "ERROR: Error initializing networks: %s\n", e.what());
+		span->SetStatus(opentelemetry::trace::StatusCode::kError, e.what());
 		std::this_thread::sleep_for(std::chrono::milliseconds(5000));
 		exit(-1);
 	}
@@ -706,6 +708,7 @@ void CV2::initializeMembers()
 	}
 	catch (std::exception& e) {
 		fprintf(stderr, "ERROR: Error initializing member: %s-%s %s\n", networkId.c_str(), memberId.c_str(), e.what());
+		span->SetStatus(opentelemetry::trace::StatusCode::kError, e.what());
 		exit(-1);
 	}
 }
@@ -762,10 +765,12 @@ void CV2::heartbeat()
 			}
 			catch (std::exception& e) {
 				fprintf(stderr, "ERROR: Error in heartbeat: %s\n", e.what());
+				span->SetStatus(opentelemetry::trace::StatusCode::kError, e.what());
 				continue;
 			}
 			catch (...) {
 				fprintf(stderr, "ERROR: Unknown error in heartbeat\n");
+				span->SetStatus(opentelemetry::trace::StatusCode::kError, "Unknown error in heartbeat");
 				continue;
 			}
 		}
@@ -858,8 +863,8 @@ void CV2::commitThread()
 			nlohmann::json& config = (qitem.first);
 			const std::string objtype = config["objtype"];
 			if (objtype == "member") {
-				auto span = tracer->StartSpan("cv2::commitThread::member");
-				auto scope = tracer->WithActiveSpan(span);
+				auto mspan = tracer->StartSpan("cv2::commitThread::member");
+				auto mscope = tracer->WithActiveSpan(span);
 
 				// fprintf(stderr, "%s: commitThread: member\n", _myAddressStr.c_str());
 				std::string memberId;
@@ -978,15 +983,21 @@ void CV2::commitThread()
 					if (s) {
 						fprintf(stderr, "%s ERROR: SQL error: %s\n", _myAddressStr.c_str(), s->query().c_str());
 					}
+					mspan->SetStatus(opentelemetry::trace::StatusCode::kError, "pqxx::data_exception");
+					mspan->SetAttribute("error", e.what());
+					mspan->SetAttribute("config", cfgDump);
 				}
 				catch (std::exception& e) {
 					std::string cfgDump = OSUtils::jsonDump(config, 2);
 					fprintf(stderr, "%s ERROR: Error updating member %s-%s: %s\njsonDump: %s\n", _myAddressStr.c_str(), networkId.c_str(), memberId.c_str(), e.what(), cfgDump.c_str());
+					mspan->SetStatus(opentelemetry::trace::StatusCode::kError, "std::exception");
+					mspan->SetAttribute("error", e.what());
+					mspan->SetAttribute("config", cfgDump);
 				}
 			}
 			else if (objtype == "network") {
-				auto span = tracer->StartSpan("cv2::commitThread::network");
-				auto scope = tracer->WithActiveSpan(span);
+				auto nspan = tracer->StartSpan("cv2::commitThread::network");
+				auto nscope = tracer->WithActiveSpan(span);
 
 				try {
 					// fprintf(stderr, "%s: commitThread: network\n", _myAddressStr.c_str());
@@ -1027,19 +1038,23 @@ void CV2::commitThread()
 					if (s) {
 						fprintf(stderr, "%s ERROR: SQL error: %s\n", _myAddressStr.c_str(), s->query().c_str());
 					}
+					nspan->SetStatus(opentelemetry::trace::StatusCode::kError, "pqxx::data_exception");
+					nspan->SetAttribute("error", e.what());
+					nspan->SetAttribute("config", OSUtils::jsonDump(config, 2));
 				}
 				catch (std::exception& e) {
 					fprintf(stderr, "%s ERROR: Error updating network: %s\n", _myAddressStr.c_str(), e.what());
+					nspan->SetStatus(opentelemetry::trace::StatusCode::kError, "std::exception");
+					nspan->SetAttribute("error", e.what());
+					nspan->SetAttribute("config", OSUtils::jsonDump(config, 2));
 				}
 			}
 			else if (objtype == "_delete_network") {
-				auto span = tracer->StartSpan("cv2::commitThread::delete_network");
-				auto scope = tracer->WithActiveSpan(span);
+				auto dspan = tracer->StartSpan("cv2::commitThread::delete_network");
+				auto dscope = tracer->WithActiveSpan(span);
 
 				// fprintf(stderr, "%s: commitThread: delete network\n", _myAddressStr.c_str());
 				try {
-					// don't think we need this. Deletion handled by CV2 API
-
 					pqxx::work w(*c->c);
 					std::string networkId = config["id"];
 
@@ -1050,11 +1065,14 @@ void CV2::commitThread()
 				}
 				catch (std::exception& e) {
 					fprintf(stderr, "%s ERROR: Error deleting network: %s\n", _myAddressStr.c_str(), e.what());
+					dspan->SetStatus(opentelemetry::trace::StatusCode::kError, "std::exception");
+					dspan->SetAttribute("error", e.what());
+					dspan->SetAttribute("config", OSUtils::jsonDump(config, 2));
 				}
 			}
 			else if (objtype == "_delete_member") {
-				auto span = tracer->StartSpan("cv2::commitThread::delete_member");
-				auto scope = tracer->WithActiveSpan(span);
+				auto dspan = tracer->StartSpan("cv2::commitThread::delete_member");
+				auto dscope = tracer->WithActiveSpan(span);
 
 				// fprintf(stderr, "%s commitThread: delete member\n", _myAddressStr.c_str());
 				try {
@@ -1069,6 +1087,9 @@ void CV2::commitThread()
 				}
 				catch (std::exception& e) {
 					fprintf(stderr, "%s ERROR: Error deleting member: %s\n", _myAddressStr.c_str(), e.what());
+					dspan->SetStatus(opentelemetry::trace::StatusCode::kError, "std::exception");
+					dspan->SetAttribute("error", e.what());
+					dspan->SetAttribute("config", OSUtils::jsonDump(config, 2));
 				}
 			}
 			else {
@@ -1077,6 +1098,8 @@ void CV2::commitThread()
 		}
 		catch (std::exception& e) {
 			fprintf(stderr, "%s ERROR: Error getting objtype: %s\n", _myAddressStr.c_str(), e.what());
+			span->SetStatus(opentelemetry::trace::StatusCode::kError, "std::exception");
+			span->SetAttribute("error", e.what());
 		}
 		_pool->unborrow(c);
 		c.reset();
@@ -1182,9 +1205,12 @@ void CV2::onlineNotificationThread()
 		}
 		catch (std::exception& e) {
 			fprintf(stderr, "%s ERROR: Error in onlineNotificationThread: %s\n", _myAddressStr.c_str(), e.what());
+			span->SetStatus(opentelemetry::trace::StatusCode::kError, "std::exception");
+			span->SetAttribute("error", e.what());
 		}
 		catch (...) {
 			fprintf(stderr, "%s ERROR: Unknown error in onlineNotificationThread\n", _myAddressStr.c_str());
+			span->SetStatus(opentelemetry::trace::StatusCode::kError, "unknown");
 		}
 		_pool->unborrow(c2);
 		_pool->unborrow(c);

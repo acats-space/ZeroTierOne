@@ -530,6 +530,7 @@ AuthInfo CV1::getSSOAuthInfo(const nlohmann::json& member, const std::string& re
 		_pool->unborrow(c);
 	}
 	catch (std::exception& e) {
+		span->SetStatus(opentelemetry::trace::StatusCode::kError, e.what());
 		fprintf(stderr, "ERROR: Error updating member on load for network %s: %s\n", networkId.c_str(), e.what());
 	}
 
@@ -815,11 +816,13 @@ void CV1::initializeNetworks()
 		fprintf(stderr, "network init done.\n");
 	}
 	catch (sw::redis::Error& e) {
+		span->SetStatus(opentelemetry::trace::StatusCode::kError, e.what());
 		fprintf(stderr, "ERROR: Error initializing networks in Redis: %s\n", e.what());
 		std::this_thread::sleep_for(std::chrono::milliseconds(5000));
 		exit(-1);
 	}
 	catch (std::exception& e) {
+		span->SetStatus(opentelemetry::trace::StatusCode::kError, e.what());
 		fprintf(stderr, "ERROR: Error initializing networks: %s\n", e.what());
 		std::this_thread::sleep_for(std::chrono::milliseconds(5000));
 		exit(-1);
@@ -1088,10 +1091,12 @@ void CV1::initializeMembers()
 		}
 	}
 	catch (sw::redis::Error& e) {
+		span->SetStatus(opentelemetry::trace::StatusCode::kError, e.what());
 		fprintf(stderr, "ERROR: Error initializing members (redis): %s\n", e.what());
 		exit(-1);
 	}
 	catch (std::exception& e) {
+		span->SetStatus(opentelemetry::trace::StatusCode::kError, e.what());
 		fprintf(stderr, "ERROR: Error initializing member: %s-%s %s\n", networkId.c_str(), memberId.c_str(), e.what());
 		exit(-1);
 	}
@@ -1283,6 +1288,7 @@ void CV1::_membersWatcher_Redis()
 			}
 		}
 		catch (sw::redis::Error& e) {
+			span->SetStatus(opentelemetry::trace::StatusCode::kError, e.what());
 			fprintf(stderr, "Error in Redis members watcher: %s\n", e.what());
 		}
 	}
@@ -1392,6 +1398,7 @@ void CV1::_networksWatcher_Redis()
 			}
 		}
 		catch (sw::redis::Error& e) {
+			span->SetStatus(opentelemetry::trace::StatusCode::kError, e.what());
 			fprintf(stderr, "Error in Redis networks watcher: %s\n", e.what());
 		}
 	}
@@ -1583,6 +1590,7 @@ void CV1::commitThread()
 				}
 				catch (std::exception& e) {
 					fprintf(stderr, "%s ERROR: Error updating member %s-%s: %s\n", _myAddressStr.c_str(), networkId.c_str(), memberId.c_str(), e.what());
+					mspan->SetStatus(opentelemetry::trace::StatusCode::kError, e.what());
 				}
 			}
 			else if (objtype == "network") {
@@ -1724,6 +1732,7 @@ void CV1::commitThread()
 					}
 				}
 				catch (std::exception& e) {
+					nspan->SetStatus(opentelemetry::trace::StatusCode::kError, e.what());
 					fprintf(stderr, "%s ERROR: Error updating network: %s\n", _myAddressStr.c_str(), e.what());
 				}
 				if (_redisMemberStatus) {
@@ -1739,6 +1748,7 @@ void CV1::commitThread()
 						}
 					}
 					catch (sw::redis::Error& e) {
+						nspan->SetStatus(opentelemetry::trace::StatusCode::kError, e.what());
 						fprintf(stderr, "ERROR: Error adding network to Redis: %s\n", e.what());
 					}
 				}
@@ -1758,6 +1768,7 @@ void CV1::commitThread()
 					w.commit();
 				}
 				catch (std::exception& e) {
+					dspan->SetStatus(opentelemetry::trace::StatusCode::kError, e.what());
 					fprintf(stderr, "%s ERROR: Error deleting network: %s\n", _myAddressStr.c_str(), e.what());
 				}
 				if (_redisMemberStatus) {
@@ -1775,6 +1786,7 @@ void CV1::commitThread()
 						}
 					}
 					catch (sw::redis::Error& e) {
+						dspan->SetStatus(opentelemetry::trace::StatusCode::kError, e.what());
 						fprintf(stderr, "ERROR: Error adding network to Redis: %s\n", e.what());
 					}
 				}
@@ -1795,6 +1807,7 @@ void CV1::commitThread()
 					w.commit();
 				}
 				catch (std::exception& e) {
+					mspan->SetStatus(opentelemetry::trace::StatusCode::kError, e.what());
 					fprintf(stderr, "%s ERROR: Error deleting member: %s\n", _myAddressStr.c_str(), e.what());
 				}
 				if (_redisMemberStatus) {
@@ -1813,6 +1826,7 @@ void CV1::commitThread()
 						}
 					}
 					catch (sw::redis::Error& e) {
+						mspan->SetStatus(opentelemetry::trace::StatusCode::kError, e.what());
 						fprintf(stderr, "ERROR: Error deleting member from Redis: %s\n", e.what());
 					}
 				}
@@ -1822,6 +1836,7 @@ void CV1::commitThread()
 			}
 		}
 		catch (std::exception& e) {
+			span->SetStatus(opentelemetry::trace::StatusCode::kError, e.what());
 			fprintf(stderr, "%s ERROR: Error getting objtype: %s\n", _myAddressStr.c_str(), e.what());
 		}
 		_pool->unborrow(c);
