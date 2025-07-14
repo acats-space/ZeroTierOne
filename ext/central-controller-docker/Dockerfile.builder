@@ -21,11 +21,14 @@ RUN apt -y install \
     libgoogle-perftools-dev \
     protobuf-compiler \
     protobuf-compiler-grpc \
+    protobuf-c-compiler \
     grpc-proto \
     libgrpc++1.51 \
     libgrpc++-dev \
     libgrpc-dev \
-    libgrpc29
+    libgrpc29 \
+    cmake \
+    git
 
 
 RUN curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
