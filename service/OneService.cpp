@@ -1078,8 +1078,12 @@ class OneServiceImpl : public OneService {
 			auto versionString = std::stringstream();
 			versionString << ZEROTIER_ONE_VERSION_MAJOR << "." << ZEROTIER_ONE_VERSION_MINOR << "." << ZEROTIER_ONE_VERSION_REVISION;
 			auto resource_attributes = sdkresource::ResourceAttributes { { "service.version", versionString.str() }, { "service.node_id", _node->identity().address().toString(buf) }, { "service.namespace", "com.zerotier.zerotier-one" } };
-
 			auto resource = sdkresource::Resource::Create(resource_attributes);
+			auto recvd_attributes = resource.GetAttributes();
+			if (! recvd_attributes.contains("service.name")) {
+				resource_attributes["service.name"] = "zerotier-one";
+				resource = sdkresource::Resource::Create(resource_attributes);
+			}
 			auto sampler = std::unique_ptr<sdktrace::Sampler>(new sdktrace::TraceIdRatioBasedSampler(_exporterSampleRate));
 			auto tracer_context = std::make_unique<sdktrace::TracerContext>(std::move(processors), resource, std::move(sampler));
 			_traceProvider = opentelemetry::nostd::shared_ptr<sdktrace::TracerProvider>(new sdktrace::TracerProvider(std::move(tracer_context)));
