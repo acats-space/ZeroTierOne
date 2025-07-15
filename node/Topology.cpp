@@ -14,12 +14,11 @@
 #include "Topology.hpp"
 
 #include "Buffer.hpp"
-#include "Constants.hpp"
 #include "Network.hpp"
-#include "NetworkConfig.hpp"
 #include "Node.hpp"
 #include "RuntimeEnvironment.hpp"
 #include "Switch.hpp"
+#include "Trace.hpp"
 
 namespace ZeroTier {
 
@@ -146,30 +145,40 @@ Identity Topology::getIdentity(void* tPtr, const Address& zta)
 	return Identity();
 }
 
-SharedPtr<Peer> Topology::getUpstreamPeer()
+SharedPtr<Peer> Topology::getUpstreamPeer(const uint64_t nwid)
 {
 	const int64_t now = RR->node->now();
 	unsigned int bestq = ~((unsigned int)0);
 	const SharedPtr<Peer>* best = (const SharedPtr<Peer>*)0;
 
-	Mutex::Lock _l2(_peers_m);
-	Mutex::Lock _l1(_upstreams_m);
-
-	for (std::vector<Address>::const_iterator a(_upstreamAddresses.begin()); a != _upstreamAddresses.end(); ++a) {
-		const SharedPtr<Peer>* p = _peers.get(*a);
-		if (p) {
-			const unsigned int q = (*p)->relayQuality(now);
-			if (q <= bestq) {
-				bestq = q;
-				best = p;
-			}
+	// If this is related to a network, check for a network specific relay.
+	if (nwid) {
+		SharedPtr<Network> network = RR->node->network(nwid);
+		if (network) {
+			//
 		}
 	}
 
-	if (! best) {
-		return SharedPtr<Peer>();
+	// If this is unrelated to a network OR there is no network-specific relay, send via a root.
+	{
+		Mutex::Lock _l2(_peers_m);
+		Mutex::Lock _l1(_upstreams_m);
+		for (std::vector<Address>::const_iterator a(_upstreamAddresses.begin()); a != _upstreamAddresses.end(); ++a) {
+			const SharedPtr<Peer>* p = _peers.get(*a);
+			if (p) {
+				const unsigned int q = (*p)->relayQuality(now);
+				if (q <= bestq) {
+					bestq = q;
+					best = p;
+				}
+			}
+		}
+		if (best) {
+			return *best;
+		}
 	}
-	return *best;
+
+	return SharedPtr<Peer>();
 }
 
 bool Topology::isUpstream(const Identity& id) const
@@ -243,6 +252,38 @@ bool Topology::isProhibitedEndpoint(const Address& ztaddr, const InetAddress& ip
 	}
 
 	return false;
+}
+
+void Topology::getRootsToContact(Hashtable<Address, std::vector<InetAddress> >& eps) const
+{
+	Mutex::Lock _l(_upstreams_m);
+
+	for (std::vector<World::Root>::const_iterator i(_planet.roots().begin()); i != _planet.roots().end(); ++i) {
+		if (i->identity != RR->identity) {
+			std::vector<InetAddress>& ips = eps[i->identity.address()];
+			for (std::vector<InetAddress>::const_iterator j(i->stableEndpoints.begin()); j != i->stableEndpoints.end(); ++j) {
+				if (std::find(ips.begin(), ips.end(), *j) == ips.end()) {
+					ips.push_back(*j);
+				}
+			}
+		}
+	}
+
+	for (std::vector<World>::const_iterator m(_moons.begin()); m != _moons.end(); ++m) {
+		for (std::vector<World::Root>::const_iterator i(m->roots().begin()); i != m->roots().end(); ++i) {
+			if (i->identity != RR->identity) {
+				std::vector<InetAddress>& ips = eps[i->identity.address()];
+				for (std::vector<InetAddress>::const_iterator j(i->stableEndpoints.begin()); j != i->stableEndpoints.end(); ++j) {
+					if (std::find(ips.begin(), ips.end(), *j) == ips.end()) {
+						ips.push_back(*j);
+					}
+				}
+			}
+		}
+	}
+	for (std::vector<std::pair<uint64_t, Address> >::const_iterator m(_moonSeeds.begin()); m != _moonSeeds.end(); ++m) {
+		eps[m->second];
+	}
 }
 
 bool Topology::addWorld(void* tPtr, const World& newWorld, bool alwaysAcceptNew)

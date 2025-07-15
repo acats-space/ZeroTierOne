@@ -27,7 +27,6 @@
 
 #include <stdint.h>
 #include <stdlib.h>
-#include <string.h>
 #include <vector>
 
 /**
@@ -378,28 +377,6 @@ class NetworkConfig {
 		return false;
 	}
 
-	inline std::vector<Address> alwaysContactAddresses() const
-	{
-		std::vector<Address> r;
-		for (unsigned int i = 0; i < specialistCount; ++i) {
-			if ((specialists[i] & (ZT_NETWORKCONFIG_SPECIALIST_TYPE_NETWORK_RELAY | ZT_NETWORKCONFIG_SPECIALIST_TYPE_MULTICAST_REPLICATOR)) != 0) {
-				r.push_back(Address(specialists[i]));
-			}
-		}
-		return r;
-	}
-
-	inline unsigned int alwaysContactAddresses(Address ac[ZT_MAX_NETWORK_SPECIALISTS]) const
-	{
-		unsigned int c = 0;
-		for (unsigned int i = 0; i < specialistCount; ++i) {
-			if ((specialists[i] & (ZT_NETWORKCONFIG_SPECIALIST_TYPE_NETWORK_RELAY | ZT_NETWORKCONFIG_SPECIALIST_TYPE_MULTICAST_REPLICATOR)) != 0) {
-				ac[c++] = specialists[i];
-			}
-		}
-		return c;
-	}
-
 	inline void alwaysContactAddresses(Hashtable<Address, std::vector<InetAddress> >& a) const
 	{
 		for (unsigned int i = 0; i < specialistCount; ++i) {
@@ -426,14 +403,6 @@ class NetworkConfig {
 	inline operator bool() const
 	{
 		return (networkId != 0);
-	}
-	inline bool operator==(const NetworkConfig& nc) const
-	{
-		return (memcmp(this, &nc, sizeof(NetworkConfig)) == 0);
-	}
-	inline bool operator!=(const NetworkConfig& nc) const
-	{
-		return (! (*this == nc));
 	}
 
 	/**

@@ -15,7 +15,6 @@
 
 #include "../version.h"
 #include "Address.hpp"
-#include "Buffer.hpp"
 #include "Constants.hpp"
 #include "ECC.hpp"
 #include "Identity.hpp"
@@ -184,6 +183,7 @@ Node::~Node()
 		Mutex::Lock _l(_networks_m);
 		_networks.clear();	 // destroy all networks before shutdown
 	}
+	// Explicitly call destructors then free memory for all other objects.
 	if (RR->sa) {
 		RR->sa->~SelfAwareness();
 	}
@@ -251,7 +251,7 @@ class _PingPeersThatNeedPing {
 		, _tPtr(tPtr)
 		, _alwaysContact(alwaysContact)
 		, _now(now)
-		, _bestCurrentUpstream(RR->topology->getUpstreamPeer())
+		, _bestCurrentUpstream(RR->topology->getUpstreamPeer(0))
 	{
 	}
 
@@ -340,9 +340,9 @@ ZT_ResultCode Node::processBackgroundTasks(void* tptr, int64_t now, volatile int
 		try {
 			_lastPingCheck = now;
 
-			// Get designated VL1 upstreams
+			// Get designated VL1 upstreams (roots)
 			Hashtable<Address, std::vector<InetAddress> > alwaysContact;
-			RR->topology->getUpstreamsToContact(alwaysContact);
+			RR->topology->getRootsToContact(alwaysContact);
 
 			// Uncomment to dump stats
 			/*

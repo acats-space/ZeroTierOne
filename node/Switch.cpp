@@ -14,7 +14,6 @@
 #include "Switch.hpp"
 
 #include "../include/ZeroTierOne.h"
-#include "../version.h"
 #include "Constants.hpp"
 #include "InetAddress.hpp"
 #include "Metrics.hpp"
@@ -27,14 +26,12 @@
 #include "Trace.hpp"
 
 #include <algorithm>
-#include <stdexcept>
 #include <stdio.h>
 #include <stdlib.h>
-#include <utility>
 
 namespace ZeroTier {
 
-Switch::Switch(const RuntimeEnvironment* renv) : RR(renv), _lastBeaconResponse(0), _lastCheckedQueues(0), _lastUniteAttempt(8)	 // only really used on root servers and upstreams, and it'll grow there just fine
+Switch::Switch(const RuntimeEnvironment* renv) : RR(renv), _lastBeaconResponse(0), _lastCheckedQueues(0), _lastUniteAttempt(8)
 {
 }
 

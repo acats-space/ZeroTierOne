@@ -13,11 +13,11 @@
 
 #include "Bond.hpp"
 
+#include "Node.hpp"
 #include "Switch.hpp"
 
 #include <cinttypes>   // for PRId64, etc. macros
 #include <cmath>
-#include <cstdio>
 #include <string>
 
 // FIXME: remove this suppression and actually fix warnings
