@@ -1159,6 +1159,7 @@ void CV1::heartbeat()
 			}
 			catch (std::exception& e) {
 				fprintf(stderr, "%s: Heartbeat update failed: %s\n", controllerId, e.what());
+				span->End();
 				std::this_thread::sleep_for(std::chrono::milliseconds(1000));
 				continue;
 			}
@@ -1179,6 +1180,7 @@ void CV1::heartbeat()
 			fprintf(stderr, "ERROR: Redis error in heartbeat thread: %s\n", e.what());
 		}
 
+		span->End();
 		std::this_thread::sleep_for(std::chrono::milliseconds(1000));
 	}
 	fprintf(stderr, "Exited heartbeat thread\n");
@@ -1210,11 +1212,6 @@ void CV1::_membersWatcher_Postgres()
 	MemberNotificationReceiver m(this, *c->c, stream);
 
 	while (_run == 1) {
-		auto provider = opentelemetry::trace::Provider::GetTracerProvider();
-		auto tracer = provider->GetTracer("cv1");
-		auto span = tracer->StartSpan("cv1::_membersWatcher_Postgres");
-		auto scope = tracer->WithActiveSpan(span);
-
 		c->c->await_notification(5, 0);
 	}
 
@@ -1970,6 +1967,8 @@ void CV1::onlineNotification_Postgres()
 		ConnectionPoolStats stats = _pool->get_stats();
 		fprintf(stderr, "%s pool stats: in use size: %llu, available size: %llu, total: %llu\n", _myAddressStr.c_str(), stats.borrowed_size, stats.pool_size, (stats.borrowed_size + stats.pool_size));
 
+		span->End();
+
 		std::this_thread::sleep_for(std::chrono::seconds(10));
 	}
 	fprintf(stderr, "%s: Fell out of run loop in onlineNotificationThread\n", _myAddressStr.c_str());
@@ -2022,7 +2021,8 @@ void CV1::onlineNotification_Redis()
 		auto total = dur.count();
 
 		fprintf(stderr, "onlineNotification ran in %llu ms\n", total);
-
+		span->End();
+		
 		std::this_thread::sleep_for(std::chrono::seconds(5));
 	}
 }
