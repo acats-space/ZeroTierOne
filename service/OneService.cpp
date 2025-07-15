@@ -10,7 +10,6 @@
  * of this software will be governed by version 2.0 of the Apache License.
  */
 /****/
-#define ZT_OPENTELEMETRY_ENABLED 1
 
 #include <algorithm>
 #include <condition_variable>
