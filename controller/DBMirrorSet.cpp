@@ -21,16 +21,16 @@ DBMirrorSet::DBMirrorSet(DB::ChangeListener* listener) : _listener(listener), _r
 {
 	_syncCheckerThread = std::thread([this]() {
 		for (;;) {
-			auto provider = opentelemetry::trace::Provider::GetTracerProvider();
-			auto tracer = provider->GetTracer("db_mirror_set");
-			auto span = tracer->StartSpan("db::syncChecker");
-			auto scope = tracer->WithActiveSpan(span);
-
 			for (int i = 0; i < 120; ++i) {	  // 1 minute delay between checks
 				if (! _running)
 					return;
 				std::this_thread::sleep_for(std::chrono::milliseconds(500));
 			}
+
+			auto provider = opentelemetry::trace::Provider::GetTracerProvider();
+			auto tracer = provider->GetTracer("db_mirror_set");
+			auto span = tracer->StartSpan("db::syncChecker");
+			auto scope = tracer->WithActiveSpan(span);
 
 			std::vector<std::shared_ptr<DB> > dbs;
 			{
