@@ -2388,6 +2388,7 @@ void EmbeddedNetworkController::_ssoExpiryThread()
 			Metrics::sso_member_deauth++;
 			onNetworkMemberDeauthorize(nullptr, e->networkId, e->nodeId);
 		}
+		span->End();
 		std::this_thread::sleep_for(std::chrono::milliseconds(500));
 	}
 }
