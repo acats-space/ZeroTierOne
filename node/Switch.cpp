@@ -144,13 +144,15 @@ void Switch::onRemotePacket(void* tPtr, const int64_t localSocket, const InetAdd
 								}
 
 								if (rq->frag0.tryDecode(RR, tPtr, flowId)) {
-									rq->timestamp = 0; // packet decoded, free entry
-								} else {
-									rq->complete = true; // set complete flag but leave entry since it probably needs WHOIS or something
+									rq->timestamp = 0;	 // packet decoded, free entry
+								}
+								else {
+									rq->complete = true;   // set complete flag but leave entry since it probably needs WHOIS or something
 									Metrics::vl1_reassembly_failed_rx++;
 								}
 							}
-						} else {
+						}
+						else {
 							// This is a duplicate fragment, ignore
 							Metrics::vl1_duplicate_fragment_rx++;
 						}
@@ -204,9 +206,9 @@ void Switch::onRemotePacket(void* tPtr, const int64_t localSocket, const InetAdd
 					// Packet is the head of a fragmented packet series
 
 					const uint64_t packetId =
-						((((uint64_t)reinterpret_cast<const uint8_t*>(data)[0]) << 56) | (((uint64_t)reinterpret_cast<const uint8_t*>(data)[1]) << 48) | (((uint64_t)reinterpret_cast<const uint8_t*>(data)[2]) << 40)
-						 | (((uint64_t)reinterpret_cast<const uint8_t*>(data)[3]) << 32) | (((uint64_t)reinterpret_cast<const uint8_t*>(data)[4]) << 24) | (((uint64_t)reinterpret_cast<const uint8_t*>(data)[5]) << 16)
-						 | (((uint64_t)reinterpret_cast<const uint8_t*>(data)[6]) << 8) | ((uint64_t)reinterpret_cast<const uint8_t*>(data)[7]));
+						((((uint64_t) reinterpret_cast<const uint8_t*>(data)[0]) << 56) | (((uint64_t) reinterpret_cast<const uint8_t*>(data)[1]) << 48) | (((uint64_t) reinterpret_cast<const uint8_t*>(data)[2]) << 40)
+						 | (((uint64_t) reinterpret_cast<const uint8_t*>(data)[3]) << 32) | (((uint64_t) reinterpret_cast<const uint8_t*>(data)[4]) << 24) | (((uint64_t) reinterpret_cast<const uint8_t*>(data)[5]) << 16)
+						 | (((uint64_t) reinterpret_cast<const uint8_t*>(data)[6]) << 8) | ((uint64_t) reinterpret_cast<const uint8_t*>(data)[7]));
 
 					RXQueueEntry* const rq = _findRXQueueEntry(packetId);
 					Mutex::Lock rql(rq->lock);
@@ -233,9 +235,10 @@ void Switch::onRemotePacket(void* tPtr, const int64_t localSocket, const InetAdd
 							}
 
 							if (rq->frag0.tryDecode(RR, tPtr, flowId)) {
-								rq->timestamp = 0; // packet decoded, free entry
-							} else {
-								rq->complete = true; // set complete flag but leave entry since it probably needs WHOIS or something
+								rq->timestamp = 0;	 // packet decoded, free entry
+							}
+							else {
+								rq->complete = true;   // set complete flag but leave entry since it probably needs WHOIS or something
 								Metrics::vl1_reassembly_failed_rx++;
 							}
 						}
@@ -243,11 +246,13 @@ void Switch::onRemotePacket(void* tPtr, const int64_t localSocket, const InetAdd
 							// Still waiting on more fragments, but keep the head
 							rq->frag0.init(data, len, path, now);
 						}
-					} else {
+					}
+					else {
 						// This is a duplicate head, ignore
 						Metrics::vl1_duplicate_head_rx++;
 					}
-				} else {
+				}
+				else {
 					// Packet is unfragmented, so just process it
 					IncomingPacket packet(data, len, path, now);
 					if (! packet.tryDecode(RR, tPtr, flowId)) {
@@ -273,7 +278,7 @@ void Switch::onRemotePacket(void* tPtr, const int64_t localSocket, const InetAdd
 
 void Switch::onLocalEthernet(void* tPtr, const SharedPtr<Network>& network, const MAC& from, const MAC& to, unsigned int etherType, unsigned int vlanId, const void* data, unsigned int len)
 {
-	if (!network->hasConfig()) {
+	if (! network->hasConfig()) {
 		return;
 	}
 
@@ -404,7 +409,7 @@ void Switch::onLocalEthernet(void* tPtr, const SharedPtr<Network>& network, cons
 					const InetAddress* const sip = &(network->config().staticIps[sipk]);
 					if (sip->ss_family == AF_INET6) {
 						my6 = reinterpret_cast<const uint8_t*>(reinterpret_cast<const struct sockaddr_in6*>(&(*sip))->sin6_addr.s6_addr);
-						const unsigned int sipNetmaskBits = Utils::ntoh((uint16_t)reinterpret_cast<const struct sockaddr_in6*>(&(*sip))->sin6_port);
+						const unsigned int sipNetmaskBits = Utils::ntoh((uint16_t) reinterpret_cast<const struct sockaddr_in6*>(&(*sip))->sin6_port);
 						if ((sipNetmaskBits == 88) && (my6[0] == 0xfd) && (my6[9] == 0x99) && (my6[10] == 0x93)) {	 // ZT-RFC4193 /88 ???
 							unsigned int ptr = 0;
 							while (ptr != 11) {
@@ -978,10 +983,11 @@ void Switch::doAnythingWaitingForPeer(void* tPtr, const SharedPtr<Peer>& peer)
 				if ((now - rq->timestamp) > ZT_RECEIVE_QUEUE_TIMEOUT) {
 					Metrics::vl1_incomplete_reassembly_rx++;
 				}
-			} else {
+			}
+			else {
 				const Address src(rq->frag0.source());
-				if (!RR->topology->getPeer(tPtr,src)) {
-					requestWhois(tPtr,now,src);
+				if (! RR->topology->getPeer(tPtr, src)) {
+					requestWhois(tPtr, now, src);
 				}
 			}
 		}
