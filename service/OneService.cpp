@@ -1057,7 +1057,9 @@ class OneServiceImpl : public OneService {
 			auto sampler = std::unique_ptr<sdktrace::TraceIdRatioBasedSampler>(new sdktrace::TraceIdRatioBasedSampler(_exporterSampleRate));
 			auto tracer_context = std::make_shared<sdktrace::TracerContext>(std::move(processor), resource, std::move(sampler));
 			_traceProvider = nostd::shared_ptr<sdktrace::TracerProvider>(new sdktrace::TracerProvider(tracer_context));
+
 			opentelemetry::trace::Provider::SetTracerProvider(_traceProvider);
+			opentelemetry::trace::Provider::
 		}
 	}
 
@@ -1601,6 +1603,12 @@ class OneServiceImpl : public OneService {
 				if (_exporterEndpoint.empty()) {
 					fprintf(stderr, "WARNING: OpenTelemetry exporter endpoint is not set. Metrics will not be exported." ZT_EOL_S);
 				}
+				if (_exporterSampleRate <= 0.0) {
+					fprintf(stderr, "WARNING: OpenTelemetry exporter sample rate is not set or invalid. Metrics will not be exported." ZT_EOL_S);
+				}
+			}
+			else {
+				fprintf(stderr, "WARNING: OpenTelemetry exporter settings are not set. Metrics will not be exported." ZT_EOL_S);
 			}
 #endif
 
