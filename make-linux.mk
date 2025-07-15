@@ -315,7 +315,7 @@ endif
 OTEL_VERSION=1.21.0
 ifeq (${ZT_OTEL},1)
 	OTEL_INSTALL_DIR=ext/opentelemetry-cpp-${OTEL_VERSION}/localinstall
-	DEFS+=-DZT_OTEL
+	DEFS+=-DZT_OPENTELEMETRY_ENABLED=1
 	INCLUDES+=-I${OTEL_INSTALL_DIR}/include
 	LDLIBS+=-L${OTEL_INSTALL_DIR}/lib -lopentelemetry_common -lopentelemetry_resources -lopentelemetry_otlp_recordable -lopentelemetry_exporter_in_memory_metric -lopentelemetry_exporter_in_memory -lopentelemetry_exporter_ostream_logs -lopentelemetry_exporter_ostream_metrics -lopentelemetry_exporter_ostream_span -lopentelemetry_exporter_otlp_grpc -lopentelemetry_exporter_otlp_grpc_client -lopentelemetry_exporter_otlp_grpc_log -lopentelemetry_exporter_otlp_grpc_metrics -lopentelemetry_trace -lopentelemetry_common -lopentelemetry_resources -lopentelemetry_logs -lopentelemetry_metrics -lopentelemetry_version
 else

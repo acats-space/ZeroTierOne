@@ -1601,15 +1601,17 @@ class OneServiceImpl : public OneService {
 				_exporterEndpoint = OSUtils::jsonString(otel["exporterEndpoint"], "");
 				_exporterSampleRate = OSUtils::jsonDouble(otel["exporterSampleRate"], 1.0f);
 				if (_exporterEndpoint.empty()) {
-					fprintf(stderr, "WARNING: OpenTelemetry exporter endpoint is not set. Metrics will not be exported." ZT_EOL_S);
+					fprintf(stderr, "WARNING: OpenTelemetry exporter endpoint is not set. Traces will not be exported." ZT_EOL_S);
 				}
 				if (_exporterSampleRate <= 0.0) {
-					fprintf(stderr, "WARNING: OpenTelemetry exporter sample rate is not set or invalid. Metrics will not be exported." ZT_EOL_S);
+					fprintf(stderr, "WARNING: OpenTelemetry exporter sample rate is not set or invalid. Traces will not be exported." ZT_EOL_S);
 				}
 			}
 			else {
-				fprintf(stderr, "WARNING: OpenTelemetry exporter settings are not set. Metrics will not be exported." ZT_EOL_S);
+				fprintf(stderr, "WARNING: OpenTelemetry exporter settings are not set. Traces will not be exported." ZT_EOL_S);
 			}
+#else
+			fprintf(stderr, "WARNING: OpenTelemetry support is not enabled. Traces will not be exported." ZT_EOL_S);
 #endif
 
 			// Bind to wildcard instead of to specific interfaces (disables full tunnel capability)
