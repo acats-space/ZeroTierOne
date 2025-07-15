@@ -10,6 +10,7 @@
  * of this software will be governed by version 2.0 of the Apache License.
  */
 /****/
+#define ZT_OPENTELEMETRY_ENABLED 1
 
 #include <algorithm>
 #include <condition_variable>
@@ -59,12 +60,32 @@
 
 #include <cpp-httplib/httplib.h>
 
-#ifdef ZT_OTEL_EXPORTER
+#ifdef ZT_OPENTELEMETRY_ENABLED
 #include "opentelemetry/exporters/otlp/otlp_grpc_exporter.h"
+#include "opentelemetry/exporters/otlp/otlp_grpc_log_record_exporter.h"
+#include "opentelemetry/exporters/otlp/otlp_grpc_metric_exporter.h"
+#include "opentelemetry/sdk/metrics/export/periodic_exporting_metric_reader.h"
+#include "opentelemetry/sdk/metrics/meter_provider.h"
+#include "opentelemetry/sdk/metrics/metric_reader.h"
+#include "opentelemetry/sdk/metrics/provider.h"
 #include "opentelemetry/sdk/resource/resource.h"
-#endif
+#include "opentelemetry/sdk/trace/processor.h"
+#include "opentelemetry/sdk/trace/provider.h"
+#include "opentelemetry/sdk/trace/samplers/trace_id_ratio.h"
+#include "opentelemetry/sdk/trace/simple_processor.h"
+#include "opentelemetry/sdk/trace/tracer.h"
+#include "opentelemetry/sdk/trace/tracer_context.h"
+#include "opentelemetry/sdk/trace/tracer_provider.h"
 
+namespace sdktrace = opentelemetry::v1::sdk::trace;
+namespace sdkmetrics = opentelemetry::v1::sdk::metrics;
+namespace sdklogs = opentelemetry::v1::sdk::logs;
+namespace sdkresource = opentelemetry::v1::sdk::resource;
+#else
+#include "opentelemetry/logs/logger.h"
+#include "opentelemetry/metrics/provider.h"
 #include "opentelemetry/trace/provider.h"
+#endif
 
 #if ZT_SSO_ENABLED
 #include <zeroidc.h>
@@ -920,7 +941,8 @@ class OneServiceImpl : public OneService {
 	std::string _ssoRedirectURL;
 
 #ifdef ZT_OPENTELEMETRY_ENABLED
-	nostd::shared_ptr<sdktrace::TracerProvider> _traceProvider;
+
+	opentelemetry::nostd::shared_ptr<opentelemetry::v1::trace::TracerProvider> _traceProvider;
 	std::string _exporterEndpoint;
 	double _exporterSampleRate;
 #endif
@@ -1041,25 +1063,25 @@ class OneServiceImpl : public OneService {
 	{
 		if (! _exporterEndpoint.empty() && _exporterSampleRate > 0.0) {
 			// Set up OpenTelemetry exporter and tracer provider
-			opentelemetry::exporter::otlp::OtlpGrpcExporterOptions opts;
+			opentelemetry::v1::exporter::otlp::OtlpGrpcExporterOptions opts;
 			opts.endpoint = _exporterEndpoint + "/v1/traces";
 			auto exporter = std::unique_ptr<opentelemetry::exporter::otlp::OtlpGrpcExporter>(new opentelemetry::exporter::otlp::OtlpGrpcExporter(opts));
-			auto processor = std::unique_ptr<opentelemetry::sdk::trace::SpanProcessor>(new opentelemetry::sdk::trace::SimpleSpanProcessor(std::move(exporter)));
-
-			char buf[16];
+			auto processor = std::unique_ptr<sdktrace::SpanProcessor>(new sdktrace::SimpleSpanProcessor(std::move(exporter)));
+			auto processors = std::vector<std::unique_ptr<sdktrace::SpanProcessor> >();
+			processors.push_back(std::move(processor));
+			char buf[256];
 			auto versionString = std::stringstream();
 			versionString << ZEROTIER_ONE_VERSION_MAJOR << "." << ZEROTIER_ONE_VERSION_MINOR << "." << ZEROTIER_ONE_VERSION_REVISION;
-			auto resource_attributes = opentelemetry::sdk::resource::ResourceAttributes { { "service.name", "zerotier-one" },
-																						  { "service.version", versionString.str() },
-																						  { "service.node_id", _node->identity().address().toString(buf) },
-																						  { "service.namespace", "com.zerotier.zerotier-one" } };
-			auto resource = std::unique_ptr<opentelemetry::sdk::resource::Resource>(new opentelemetry::sdk::resource::Resource(resource_attributes));
-			auto sampler = std::unique_ptr<sdktrace::TraceIdRatioBasedSampler>(new sdktrace::TraceIdRatioBasedSampler(_exporterSampleRate));
-			auto tracer_context = std::make_shared<sdktrace::TracerContext>(std::move(processor), resource, std::move(sampler));
-			_traceProvider = nostd::shared_ptr<sdktrace::TracerProvider>(new sdktrace::TracerProvider(tracer_context));
+			auto resource_attributes = sdkresource::ResourceAttributes { { "service.name", "zerotier-one" },
+																		 { "service.version", versionString.str() },
+																		 { "service.node_id", _node->identity().address().toString(buf) },
+																		 { "service.namespace", "com.zerotier.zerotier-one" } };
 
-			opentelemetry::trace::Provider::SetTracerProvider(_traceProvider);
-			opentelemetry::trace::Provider::
+			auto resource = sdkresource::Resource::Create(resource_attributes);
+			auto sampler = std::unique_ptr<sdktrace::Sampler>(new sdktrace::TraceIdRatioBasedSampler(_exporterSampleRate));
+			auto tracer_context = std::make_unique<sdktrace::TracerContext>(std::move(processors), resource, std::move(sampler));
+			_traceProvider = opentelemetry::nostd::shared_ptr<sdktrace::TracerProvider>(new sdktrace::TracerProvider(std::move(tracer_context)));
+			sdktrace::Provider::SetTracerProvider(_traceProvider);
 		}
 	}
 
@@ -1067,12 +1089,12 @@ class OneServiceImpl : public OneService {
 	{
 		if (! _exporterEndpoint.empty()) {
 			// Set up OpenTelemetry metrics exporter
-			opentelemetry::exporter::otlp::OtlpGrpcExporterOptions opts;
-			opts.endpoint = _exporterEndpoint + "/v1/metrics";
-			auto exporter = std::unique_ptr<opentelemetry::exporter::otlp::OtlpGrpcExporter>(new opentelemetry::exporter::otlp::OtlpGrpcExporter(opts));
-			auto processor = std::unique_ptr<opentelemetry::sdk::metrics::MetricReader>(new opentelemetry::sdk::metrics::PeriodicExportingMetricReader(std::move(exporter), std::chrono::seconds(5)));
-			auto meter_provider = nostd::shared_ptr<sdkmetrics::MeterProvider>(new sdkmetrics::MeterProvider(std::move(processor)));
-			opentelemetry::metrics::Provider::SetMeterProvider(meter_provider);
+			// opentelemetry::exporter::otlp::OtlpGrpcExporterOptions opts;
+			// opts.endpoint = _exporterEndpoint + "/v1/metrics";
+			// auto exporter = std::unique_ptr<opentelemetry::exporter::otlp::OtlpGrpcExporter>(new opentelemetry::exporter::otlp::OtlpGrpcExporter(opts));
+			// auto processor = std::unique_ptr<sdkmetrics::MetricReader>(new sdkmetrics::PeriodicExportingMetricReader(std::move(exporter)));
+			// auto meter_provider = opentelemetry::v1::nostd::shared_ptr<sdkmetrics::MeterProvider>(new sdkmetrics::MeterProvider(std::move(processor)));
+			// sdkmetrics::Provider::SetMeterProvider(meter_provider);
 		}
 	}
 
@@ -1080,12 +1102,12 @@ class OneServiceImpl : public OneService {
 	{
 		if (! _exporterEndpoint.empty()) {
 			// Set up OpenTelemetry logging exporter
-			opentelemetry::exporter::otlp::OtlpGrpcExporterOptions opts;
-			opts.endpoint = _exporterEndpoint + "/v1/logs";
-			auto exporter = std::unique_ptr<opentelemetry::exporter::otlp::OtlpGrpcExporter>(new opentelemetry::exporter::otlp::OtlpGrpcExporter(opts));
-			auto processor = std::unique_ptr<opentelemetry::sdk::logs::LogRecordProcessor>(new opentelemetry::sdk::logs::SimpleLogRecordProcessor(std::move(exporter)));
-			auto logger_provider = nostd::shared_ptr<sdklogs::LoggerProvider>(new sdklogs::LoggerProvider(std::move(processor)));
-			opentelemetry::logs::Provider::SetLoggerProvider(logger_provider);
+			// opentelemetry::exporter::otlp::OtlpGrpcExporterOptions opts;
+			// opts.endpoint = _exporterEndpoint + "/v1/logs";
+			// auto exporter = std::unique_ptr<opentelemetry::exporter::otlp::OtlpGrpcExporter>(new opentelemetry::exporter::otlp::OtlpGrpcExporter(opts));
+			// auto processor = std::unique_ptr<opentelemetry::v1::sdk::logs::LogRecordProcessor>(new opentelemetry::v1::sdk::logs::SimpleLogRecordProcessor(std::move(exporter)));
+			// auto logger_provider = opentelemetry::nostd::shared_ptr<opentelemetry::v1::sdk::logs::LoggerProvider>(new opentelemetry::v1::sdk::logs::LoggerProvider(std::move(processor)));
+			// opentelemetry::logs::Provider::SetLoggerProvider(logger_provider);
 		}
 	}
 #endif
