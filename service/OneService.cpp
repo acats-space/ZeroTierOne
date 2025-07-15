@@ -10,6 +10,7 @@
  * of this software will be governed by version 2.0 of the Apache License.
  */
 /****/
+#define ZT_OPENTELEMETRY_ENABLED 1
 
 #include <algorithm>
 #include <condition_variable>
@@ -60,6 +61,7 @@
 #include <cpp-httplib/httplib.h>
 
 #ifdef ZT_OPENTELEMETRY_ENABLED
+#include "opentelemetry/exporters/memory/in_memory_data.h"
 #include "opentelemetry/exporters/otlp/otlp_grpc_exporter.h"
 #include "opentelemetry/exporters/otlp/otlp_grpc_log_record_exporter.h"
 #include "opentelemetry/exporters/otlp/otlp_grpc_metric_exporter.h"
@@ -68,10 +70,11 @@
 #include "opentelemetry/sdk/metrics/metric_reader.h"
 #include "opentelemetry/sdk/metrics/provider.h"
 #include "opentelemetry/sdk/resource/resource.h"
+#include "opentelemetry/sdk/trace/batch_span_processor.h"
+#include "opentelemetry/sdk/trace/batch_span_processor_options.h"
 #include "opentelemetry/sdk/trace/processor.h"
 #include "opentelemetry/sdk/trace/provider.h"
 #include "opentelemetry/sdk/trace/samplers/trace_id_ratio.h"
-#include "opentelemetry/sdk/trace/simple_processor.h"
 #include "opentelemetry/sdk/trace/tracer.h"
 #include "opentelemetry/sdk/trace/tracer_context.h"
 #include "opentelemetry/sdk/trace/tracer_provider.h"
@@ -1065,7 +1068,11 @@ class OneServiceImpl : public OneService {
 			opentelemetry::v1::exporter::otlp::OtlpGrpcExporterOptions opts;
 			opts.endpoint = _exporterEndpoint + "/v1/traces";
 			auto exporter = std::unique_ptr<opentelemetry::exporter::otlp::OtlpGrpcExporter>(new opentelemetry::exporter::otlp::OtlpGrpcExporter(opts));
-			auto processor = std::unique_ptr<sdktrace::SpanProcessor>(new sdktrace::SimpleSpanProcessor(std::move(exporter)));
+
+			sdktrace::BatchSpanProcessorOptions batch_options {};
+			batch_options.schedule_delay_millis = std::chrono::milliseconds(5000);	 // 5 seconds
+
+			auto processor = std::unique_ptr<sdktrace::SpanProcessor>(new sdktrace::BatchSpanProcessor(std::move(exporter), batch_options));
 			auto processors = std::vector<std::unique_ptr<sdktrace::SpanProcessor> >();
 			processors.push_back(std::move(processor));
 			char buf[256];
