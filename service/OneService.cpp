@@ -1077,10 +1077,7 @@ class OneServiceImpl : public OneService {
 			char buf[256];
 			auto versionString = std::stringstream();
 			versionString << ZEROTIER_ONE_VERSION_MAJOR << "." << ZEROTIER_ONE_VERSION_MINOR << "." << ZEROTIER_ONE_VERSION_REVISION;
-			auto resource_attributes = sdkresource::ResourceAttributes { { "service.name", "zerotier-one" },
-																		 { "service.version", versionString.str() },
-																		 { "service.node_id", _node->identity().address().toString(buf) },
-																		 { "service.namespace", "com.zerotier.zerotier-one" } };
+			auto resource_attributes = sdkresource::ResourceAttributes { { "service.version", versionString.str() }, { "service.node_id", _node->identity().address().toString(buf) }, { "service.namespace", "com.zerotier.zerotier-one" } };
 
 			auto resource = sdkresource::Resource::Create(resource_attributes);
 			auto sampler = std::unique_ptr<sdktrace::Sampler>(new sdktrace::TraceIdRatioBasedSampler(_exporterSampleRate));
