@@ -1041,10 +1041,10 @@ unsigned long Switch::doTimerTasks(void* tPtr, int64_t now)
 		Mutex::Lock rql(rq->lock);
 		if ((rq->timestamp) && (rq->complete)) {
 			if ((rq->frag0.tryDecode(RR, tPtr, rq->flowId)) || ((now - rq->timestamp) > ZT_RECEIVE_QUEUE_TIMEOUT)) {
-				rq->timestamp = 0;
 				if ((now - rq->timestamp) > ZT_RECEIVE_QUEUE_TIMEOUT) {
 					Metrics::vl1_incomplete_reassembly_rx++;
 				}
+				rq->timestamp = 0;
 			}
 			else {
 				const Address src(rq->frag0.source());
