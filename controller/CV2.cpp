@@ -776,6 +776,7 @@ void CV2::heartbeat()
 		}
 
 		_pool->unborrow(c);
+		span->End();
 
 		std::this_thread::sleep_for(std::chrono::seconds(1));
 	}
@@ -792,11 +793,6 @@ void CV2::membersDbWatcher()
 	MemberNotificationReceiver m(this, *c->c, stream);
 
 	while (_run == 1) {
-		auto provider = opentelemetry::trace::Provider::GetTracerProvider();
-		auto tracer = provider->GetTracer("cv2");
-		auto span = tracer->StartSpan("cv2::membersDbWatcher");
-		auto scope = tracer->WithActiveSpan(span);
-
 		c->c->await_notification(5, 0);
 	}
 
@@ -816,11 +812,6 @@ void CV2::networksDbWatcher()
 	NetworkNotificationReceiver n(this, *c->c, stream);
 
 	while (_run == 1) {
-		auto provider = opentelemetry::trace::Provider::GetTracerProvider();
-		auto tracer = provider->GetTracer("cv2");
-		auto span = tracer->StartSpan("cv2::networksDbWatcher");
-		auto scope = tracer->WithActiveSpan(span);
-
 		c->c->await_notification(5, 0);
 	}
 
@@ -1214,6 +1205,8 @@ void CV2::onlineNotificationThread()
 		}
 		_pool->unborrow(c2);
 		_pool->unborrow(c);
+		span->End();
+
 		std::this_thread::sleep_for(std::chrono::seconds(10));
 	}
 
