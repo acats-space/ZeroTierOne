@@ -112,60 +112,12 @@ bool CV2::isReady()
 
 void CV2::_memberChanged(nlohmann::json& old, nlohmann::json& memberConfig, bool notifyListeners)
 {
-	// auto provider = opentelemetry::trace::Provider::GetTracerProvider();
-	// auto tracer = provider->GetTracer("cv2");
-	// auto span = tracer->StartSpan("cv2::_memberChanged");
-	// auto scope = tracer->WithActiveSpan(span);
-
-	// if (memberConfig.is_object()) {
-	// 	// member config change
-	// 	const std::string ids = memberConfig["id"];
-	// 	const uint64_t networkId = OSUtils::jsonIntHex(memberConfig["nwid"], 0ULL);
-	// 	const uint64_t memberId = Utils::hexStrToU64(ids.c_str());
-	// 	if ((networkId) && (memberId)) {
-	// 		save(memberConfig, notifyListeners);
-	// 	}
-	// }
-	// else if (old.is_object()) {
-	// 	// member delete
-	// 	const std::string ids = old["id"];
-	// 	const uint64_t networkId = OSUtils::jsonIntHex(old["nwid"], 0ULL);
-	// 	const uint64_t memberId = Utils::hexStrToU64(ids.c_str());
-	// 	if ((networkId) && (memberId)) {
-	// 		eraseMember(networkId, memberId);
-	// 	}
-	// }
-
-	// fprintf(stderr, "CV2::_memberChanged\n");
 	DB::_memberChanged(old, memberConfig, notifyListeners);
 }
 
 void CV2::_networkChanged(nlohmann::json& old, nlohmann::json& networkConfig, bool notifyListeners)
 {
-	// auto provider = opentelemetry::trace::Provider::GetTracerProvider();
-	// auto tracer = provider->GetTracer("cv2");
-	// auto span = tracer->StartSpan("cv2::_networkChanged");
-	// auto scope = tracer->WithActiveSpan(span);
-
-	// if (networkConfig.is_object()) {
-	// 	// network config change
-	// 	const std::string ids = networkConfig["id"];
-	// 	const uint64_t networkId = Utils::hexStrToU64(ids.c_str());
-	// 	if (networkId) {
-	// 		save(networkConfig, notifyListeners);
-	// 	}
-	// }
-	// else if (old.is_object()) {
-	// 	// network delete
-	// 	const std::string ids = networkConfig["id"];
-	// 	const uint64_t networkId = Utils::hexStrToU64(ids.c_str());
-	// 	if (networkId) {
-	// 		eraseNetwork(networkId);
-	// 	}
-	// }
-
-	// fprintf(stderr, "CV2::_networkChanged\n");
-	DB::_networkChanged(old, networkConfig, false);
+	DB::_networkChanged(old, networkConfig, notifyListeners);
 }
 
 bool CV2::save(nlohmann::json& record, bool notifyListeners)
@@ -241,19 +193,18 @@ void CV2::eraseNetwork(const uint64_t networkId)
 	auto span = tracer->StartSpan("cv2::eraseNetwork");
 	auto scope = tracer->WithActiveSpan(span);
 	char networkIdStr[17];
-	span->SetAttribute("network_id", Utils::hex(networkId, networkIdStr));
+	std::string nwid = Utils::hex(networkId, networkIdStr);
+	span->SetAttribute("network_id", nwid);
 
-	fprintf(stderr, "PostgreSQL::eraseNetwork\n");
-	char tmp2[24];
+	fprintf(stderr, "CV2::eraseNetwork\n");
 	waitForReady();
-	Utils::hex(networkId, tmp2);
 	std::pair<nlohmann::json, bool> tmp;
-	tmp.first["id"] = tmp2;
+	tmp.first["id"] = nwid;
 	tmp.first["objtype"] = "_delete_network";
 	tmp.second = true;
 	_commitQueue.post(tmp);
-	nlohmann::json nullJson;
-	_networkChanged(tmp.first, nullJson, true);
+	// nlohmann::json nullJson;
+	//_networkChanged(tmp.first, nullJson, isReady());
 }
 
 void CV2::eraseMember(const uint64_t networkId, const uint64_t memberId)
@@ -278,8 +229,8 @@ void CV2::eraseMember(const uint64_t networkId, const uint64_t memberId)
 	tmp.first["objtype"] = "_delete_member";
 	tmp.second = true;
 	_commitQueue.post(tmp);
-	nlohmann::json nullJson;
-	_memberChanged(tmp.first, nullJson, true);
+	// nlohmann::json nullJson;
+	//_memberChanged(tmp.first, nullJson, isReady());
 }
 
 void CV2::nodeIsOnline(const uint64_t networkId, const uint64_t memberId, const InetAddress& physicalAddress, const char* osArch)
@@ -1106,11 +1057,17 @@ void CV2::commitThread()
 				try {
 					pqxx::work w(*c->c);
 					std::string networkId = config["id"];
-
+					fprintf(stderr, "Deleting network %s\n", networkId.c_str());
 					w.exec_params0("DELETE FROM network_memberships_ctl WHERE network_id = $1", networkId);
 					w.exec_params0("DELETE FROM networks_ctl WHERE id = $1", networkId);
 
 					w.commit();
+
+					uint64_t nwidInt = OSUtils::jsonIntHex(config["nwid"], 0ULL);
+					json oldConfig;
+					get(nwidInt, oldConfig);
+					json empty;
+					_networkChanged(oldConfig, empty, qitem.second);
 				}
 				catch (std::exception& e) {
 					fprintf(stderr, "%s ERROR: Error deleting network: %s\n", _myAddressStr.c_str(), e.what());
@@ -1133,6 +1090,16 @@ void CV2::commitThread()
 					pqxx::result res = w.exec_params0("DELETE FROM network_memberships_ctl WHERE device_id = $1 AND network_id = $2", memberId, networkId);
 
 					w.commit();
+
+					uint64_t nwidInt = OSUtils::jsonIntHex(config["nwid"], 0ULL);
+					uint64_t memberidInt = OSUtils::jsonIntHex(config["id"], 0ULL);
+
+					nlohmann::json networkConfig;
+					nlohmann::json oldConfig;
+
+					get(nwidInt, networkConfig, memberidInt, oldConfig);
+					json empty;
+					_memberChanged(oldConfig, empty, qitem.second);
 				}
 				catch (std::exception& e) {
 					fprintf(stderr, "%s ERROR: Error deleting member: %s\n", _myAddressStr.c_str(), e.what());

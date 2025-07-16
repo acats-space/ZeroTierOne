@@ -89,9 +89,25 @@ template <typename T> class MemberNotificationReceiver : public pqxx::notificati
 			oldConfig = ov;
 		if (nv.is_object())
 			newConfig = nv;
-		if (oldConfig.is_object() || newConfig.is_object()) {
-			_psql->_memberChanged(oldConfig, newConfig, _psql->isReady());
+
+		if (oldConfig.is_object() && newConfig.is_object()) {
+			_psql->save(newConfig, _psql->isReady());
 			fprintf(stderr, "payload sent\n");
+		}
+		else if (newConfig.is_object() && ! oldConfig.is_object()) {
+			// new member
+			Metrics::member_count++;
+			_psql->save(newConfig, _psql->isReady());
+			fprintf(stderr, "new member payload sent\n");
+		}
+		else if (! newConfig.is_object() && oldConfig.is_object()) {
+			// member delete
+			uint64_t networkId = OSUtils::jsonIntHex(oldConfig["nwid"], 0ULL);
+			uint64_t memberId = OSUtils::jsonIntHex(oldConfig["id"], 0ULL);
+			if (memberId && networkId) {
+				_psql->eraseMember(networkId, memberId);
+				fprintf(stderr, "member delete payload sent\n");
+			}
 		}
 	}
 
@@ -123,16 +139,42 @@ template <typename T> class NetworkNotificationReceiver : public pqxx::notificat
 		fprintf(stderr, "Network Notification received: %s\n", payload.c_str());
 		Metrics::pgsql_net_notification++;
 		nlohmann::json tmp(nlohmann::json::parse(payload));
+
 		nlohmann::json& ov = tmp["old_val"];
 		nlohmann::json& nv = tmp["new_val"];
 		nlohmann::json oldConfig, newConfig;
+
 		if (ov.is_object())
 			oldConfig = ov;
 		if (nv.is_object())
 			newConfig = nv;
-		if (oldConfig.is_object() || newConfig.is_object()) {
-			_psql->_networkChanged(oldConfig, newConfig, _psql->isReady());
+
+		if (oldConfig.is_object() && newConfig.is_object()) {
+			std::string nwid = oldConfig["id"];
+			span->SetAttribute("action", "network_change");
+			span->SetAttribute("network_id", nwid);
+			_psql->save(newConfig, _psql->isReady());
 			fprintf(stderr, "payload sent\n");
+		}
+		else if (newConfig.is_object() && ! oldConfig.is_object()) {
+			std::string nwid = newConfig["id"];
+			span->SetAttribute("network_id", nwid);
+			span->SetAttribute("action", "new_network");
+			// new network
+			_psql->save(newConfig, _psql->isReady());
+			fprintf(stderr, "new network payload sent\n");
+		}
+		else if (! newConfig.is_object() && oldConfig.is_object()) {
+			// network delete
+			span->SetAttribute("action", "delete_network");
+			std::string nwid = oldConfig["id"];
+			span->SetAttribute("network_id", nwid);
+			uint64_t networkId = Utils::hexStrToU64(nwid.c_str());
+			span->SetAttribute("network_id_int", networkId);
+			if (networkId) {
+				_psql->eraseNetwork(networkId);
+				fprintf(stderr, "network delete payload sent\n");
+			}
 		}
 	}
 
