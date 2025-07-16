@@ -612,11 +612,11 @@ void EmbeddedNetworkController::init(const Identity& signingId, Sender* sender)
 #ifdef ZT_CONTROLLER_USE_LIBPQ
 	if ((_path.length() > 9) && (_path.substr(0, 9) == "postgres:")) {
 		fprintf(stderr, "CV1\n");
-		_db.addDB(std::shared_ptr<DB>(new CV1(_signingId, _path.substr(9).c_str(), _listenPort, _rc)));
+		_db.addDB(std::shared_ptr<CV1>(new CV1(_signingId, _path.substr(9).c_str(), _listenPort, _rc)));
 	}
 	else if ((_path.length() > 4) && (_path.substr(0, 4) == "cv2:")) {
 		fprintf(stderr, "CV2\n");
-		_db.addDB(std::shared_ptr<DB>(new CV2(_signingId, _path.substr(4).c_str(), _listenPort)));
+		_db.addDB(std::shared_ptr<CV2>(new CV2(_signingId, _path.substr(4).c_str(), _listenPort)));
 	}
 	else {
 		fprintf(stderr, "FileDB\n");

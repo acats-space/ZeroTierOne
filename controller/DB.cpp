@@ -520,8 +520,6 @@ void DB::_networkChanged(nlohmann::json& old, nlohmann::json& networkConfig, boo
 				std::cerr << "Error deauthorizing members on network delete: " << e.what() << std::endl;
 			}
 
-			this->eraseNetwork(networkId);
-
 			// delete the network
 			std::unique_lock<std::shared_mutex> l(_networks_l);
 			_networks.erase(networkId);
