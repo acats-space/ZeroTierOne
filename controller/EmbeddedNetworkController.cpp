@@ -621,7 +621,7 @@ void EmbeddedNetworkController::init(const Identity& signingId, Sender* sender)
 	else {
 		fprintf(stderr, "FileDB\n");
 #endif
-		_db.addDB(std::shared_ptr<DB>(new FileDB(_path.c_str())));
+		_db.addDB(std::shared_ptr<FileDB>(new FileDB(_path.c_str())));
 #ifdef ZT_CONTROLLER_USE_LIBPQ
 	}
 #endif
