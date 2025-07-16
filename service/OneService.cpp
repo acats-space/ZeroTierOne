@@ -64,6 +64,8 @@
 #include "opentelemetry/exporters/otlp/otlp_grpc_exporter.h"
 #include "opentelemetry/exporters/otlp/otlp_grpc_log_record_exporter.h"
 #include "opentelemetry/exporters/otlp/otlp_grpc_metric_exporter.h"
+#include "opentelemetry/logs/logger.h"
+#include "opentelemetry/metrics/provider.h"
 #include "opentelemetry/sdk/metrics/export/periodic_exporting_metric_reader.h"
 #include "opentelemetry/sdk/metrics/meter_provider.h"
 #include "opentelemetry/sdk/metrics/metric_reader.h"
@@ -77,6 +79,7 @@
 #include "opentelemetry/sdk/trace/tracer.h"
 #include "opentelemetry/sdk/trace/tracer_context.h"
 #include "opentelemetry/sdk/trace/tracer_provider.h"
+#include "opentelemetry/trace/provider.h"
 
 namespace sdktrace = opentelemetry::v1::sdk::trace;
 namespace sdkmetrics = opentelemetry::v1::sdk::metrics;
@@ -1063,6 +1066,7 @@ class OneServiceImpl : public OneService {
 	void initTracing()
 	{
 		if (! _exporterEndpoint.empty() && _exporterSampleRate > 0.0) {
+			fprintf(stderr, "OpenTelemetry tracing enabled with endpoint %s and sample rate %.2f\n", _exporterEndpoint.c_str(), _exporterSampleRate);
 			// Set up OpenTelemetry exporter and tracer provider
 			opentelemetry::v1::exporter::otlp::OtlpGrpcExporterOptions opts;
 			opts.endpoint = _exporterEndpoint + "/v1/traces";
@@ -1179,6 +1183,7 @@ class OneServiceImpl : public OneService {
 			applyLocalConfig();
 
 #ifdef ZT_OPENTELEMETRY_ENABLED
+			fprintf(stderr, "OneServiceImpl::run: initializing OpenTelemetry...\n");
 			initTracing();
 			initMetrics();
 			initLogging();
