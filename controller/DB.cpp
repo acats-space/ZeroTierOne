@@ -456,6 +456,9 @@ void DB::_networkChanged(nlohmann::json& old, nlohmann::json& networkConfig, boo
 	auto provider = opentelemetry::trace::Provider::GetTracerProvider();
 	auto tracer = provider->GetTracer("db");
 	auto span = tracer->StartSpan("db::_networkChanged");
+	span->SetAttribute("old_network_config", old.dump());
+	span->SetAttribute("network_config", networkConfig.dump());
+	span->SetAttribute("notify_listeners", notifyListeners);
 	auto scope = tracer->WithActiveSpan(span);
 
 	Metrics::db_network_change++;
@@ -516,6 +519,8 @@ void DB::_networkChanged(nlohmann::json& old, nlohmann::json& networkConfig, boo
 			catch (std::exception& e) {
 				std::cerr << "Error deauthorizing members on network delete: " << e.what() << std::endl;
 			}
+
+			this->eraseNetwork(networkId);
 
 			// delete the network
 			std::unique_lock<std::shared_mutex> l(_networks_l);
