@@ -77,6 +77,7 @@ template <typename T> class MemberNotificationReceiver : public pqxx::notificati
 		auto span = tracer->StartSpan("db_member_notification::operator()");
 		auto scope = tracer->WithActiveSpan(span);
 		span->SetAttribute("payload", payload);
+		span->SetAttribute("psqlReady", _psql->isReady());
 
 		fprintf(stderr, "Member Notification received: %s\n", payload.c_str());
 		Metrics::pgsql_mem_notification++;
@@ -117,6 +118,7 @@ template <typename T> class NetworkNotificationReceiver : public pqxx::notificat
 		auto span = tracer->StartSpan("db_network_notification::operator()");
 		auto scope = tracer->WithActiveSpan(span);
 		span->SetAttribute("payload", payload);
+		span->SetAttribute("psqlReady", _psql->isReady());
 
 		fprintf(stderr, "Network Notification received: %s\n", payload.c_str());
 		Metrics::pgsql_net_notification++;
