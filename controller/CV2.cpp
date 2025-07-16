@@ -112,64 +112,60 @@ bool CV2::isReady()
 
 void CV2::_memberChanged(nlohmann::json& old, nlohmann::json& memberConfig, bool notifyListeners)
 {
-	auto provider = opentelemetry::trace::Provider::GetTracerProvider();
-	auto tracer = provider->GetTracer("cv2");
-	auto span = tracer->StartSpan("cv2::_memberChanged");
-	auto scope = tracer->WithActiveSpan(span);
+	// auto provider = opentelemetry::trace::Provider::GetTracerProvider();
+	// auto tracer = provider->GetTracer("cv2");
+	// auto span = tracer->StartSpan("cv2::_memberChanged");
+	// auto scope = tracer->WithActiveSpan(span);
 
-	if (memberConfig.is_object()) {
-		// member config change
-		const std::string ids = memberConfig["id"];
-		const uint64_t networkId = OSUtils::jsonIntHex(memberConfig["nwid"], 0ULL);
-		const uint64_t memberId = Utils::hexStrToU64(ids.c_str());
-		if ((networkId) && (memberId)) {
-			save(memberConfig, notifyListeners);
-		}
-	}
-	else if (old.is_object()) {
-		// member delete
-		const std::string ids = old["id"];
-		const uint64_t networkId = OSUtils::jsonIntHex(old["nwid"], 0ULL);
-		const uint64_t memberId = Utils::hexStrToU64(ids.c_str());
-		if ((networkId) && (memberId)) {
-			eraseMember(networkId, memberId);
-		}
-	}
+	// if (memberConfig.is_object()) {
+	// 	// member config change
+	// 	const std::string ids = memberConfig["id"];
+	// 	const uint64_t networkId = OSUtils::jsonIntHex(memberConfig["nwid"], 0ULL);
+	// 	const uint64_t memberId = Utils::hexStrToU64(ids.c_str());
+	// 	if ((networkId) && (memberId)) {
+	// 		save(memberConfig, notifyListeners);
+	// 	}
+	// }
+	// else if (old.is_object()) {
+	// 	// member delete
+	// 	const std::string ids = old["id"];
+	// 	const uint64_t networkId = OSUtils::jsonIntHex(old["nwid"], 0ULL);
+	// 	const uint64_t memberId = Utils::hexStrToU64(ids.c_str());
+	// 	if ((networkId) && (memberId)) {
+	// 		eraseMember(networkId, memberId);
+	// 	}
+	// }
 
-	if (notifyListeners) {
-		// fprintf(stderr, "CV2::_memberChanged\n");
-		DB::_memberChanged(old, memberConfig, notifyListeners);
-	}
+	// fprintf(stderr, "CV2::_memberChanged\n");
+	DB::_memberChanged(old, memberConfig, notifyListeners);
 }
 
 void CV2::_networkChanged(nlohmann::json& old, nlohmann::json& networkConfig, bool notifyListeners)
 {
-	auto provider = opentelemetry::trace::Provider::GetTracerProvider();
-	auto tracer = provider->GetTracer("cv2");
-	auto span = tracer->StartSpan("cv2::_networkChanged");
-	auto scope = tracer->WithActiveSpan(span);
+	// auto provider = opentelemetry::trace::Provider::GetTracerProvider();
+	// auto tracer = provider->GetTracer("cv2");
+	// auto span = tracer->StartSpan("cv2::_networkChanged");
+	// auto scope = tracer->WithActiveSpan(span);
 
-	if (networkConfig.is_object()) {
-		// network config change
-		const std::string ids = networkConfig["id"];
-		const uint64_t networkId = Utils::hexStrToU64(ids.c_str());
-		if (networkId) {
-			save(networkConfig, notifyListeners);
-		}
-	}
-	else if (old.is_object()) {
-		// network delete
-		const std::string ids = networkConfig["id"];
-		const uint64_t networkId = Utils::hexStrToU64(ids.c_str());
-		if (networkId) {
-			eraseNetwork(networkId);
-		}
-	}
+	// if (networkConfig.is_object()) {
+	// 	// network config change
+	// 	const std::string ids = networkConfig["id"];
+	// 	const uint64_t networkId = Utils::hexStrToU64(ids.c_str());
+	// 	if (networkId) {
+	// 		save(networkConfig, notifyListeners);
+	// 	}
+	// }
+	// else if (old.is_object()) {
+	// 	// network delete
+	// 	const std::string ids = networkConfig["id"];
+	// 	const uint64_t networkId = Utils::hexStrToU64(ids.c_str());
+	// 	if (networkId) {
+	// 		eraseNetwork(networkId);
+	// 	}
+	// }
 
-	if (notifyListeners) {
-		// fprintf(stderr, "CV2::_networkChanged\n");
-		DB::_networkChanged(old, networkConfig, false);
-	}
+	// fprintf(stderr, "CV2::_networkChanged\n");
+	DB::_networkChanged(old, networkConfig, false);
 }
 
 bool CV2::save(nlohmann::json& record, bool notifyListeners)
