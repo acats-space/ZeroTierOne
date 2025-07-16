@@ -13,6 +13,7 @@
 
 #include "Membership.hpp"
 
+#include "Constants.hpp"
 #include "Node.hpp"
 #include "Packet.hpp"
 #include "Peer.hpp"
@@ -93,7 +94,7 @@ void Membership::pushCredentials(const RuntimeEnvironment* RR, void* tPtr, const
 		outp.setAt(cooCountAt, (uint16_t)thisPacketCooCount);
 
 		outp.compress();
-		RR->sw->send(tPtr, outp, true);
+		RR->sw->send(tPtr, outp, true, nconf.networkId, ZT_QOS_NO_FLOW);
 		Metrics::pkt_network_credentials_out++;
 	}
 

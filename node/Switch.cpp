@@ -83,6 +83,7 @@ void Switch::onRemotePacket(void* tPtr, const int64_t localSocket, const InetAdd
 				const Address destination(fragment.destination());
 
 				if (destination != RR->identity.address()) {
+					// Fragment is someone else's.
 					if ((! RR->topology->amUpstream()) && (! path->trustEstablished(now))) {
 						return;
 					}
@@ -95,7 +96,7 @@ void Switch::onRemotePacket(void* tPtr, const int64_t localSocket, const InetAdd
 						SharedPtr<Peer> relayTo = RR->topology->getPeer(tPtr, destination);
 						if ((! relayTo) || (! relayTo->sendDirect(tPtr, fragment.data(), fragment.size(), now, false))) {
 							// Don't know peer or no direct path -- so relay via someone upstream
-							relayTo = RR->topology->getUpstreamPeer();
+							relayTo = RR->topology->getUpstreamPeer(0);
 							if (relayTo) {
 								relayTo->sendDirect(tPtr, fragment.data(), fragment.size(), now, true);
 							}
@@ -164,6 +165,7 @@ void Switch::onRemotePacket(void* tPtr, const int64_t localSocket, const InetAdd
 				}
 
 				if (destination != RR->identity.address()) {
+					// Not our packet head.
 					if ((! RR->topology->amUpstream()) && (! path->trustEstablished(now)) && (source != RR->identity.address())) {
 						return;
 					}
@@ -182,7 +184,7 @@ void Switch::onRemotePacket(void* tPtr, const int64_t localSocket, const InetAdd
 							}
 						}
 						else {
-							relayTo = RR->topology->getUpstreamPeer();
+							relayTo = RR->topology->getUpstreamPeer(0);
 							if ((relayTo) && (relayTo->address() != source)) {
 								if (relayTo->sendDirect(tPtr, packet.data(), packet.size(), now, true)) {
 									const SharedPtr<Peer> sourcePeer(RR->topology->getPeer(tPtr, source));
@@ -550,7 +552,7 @@ void Switch::onLocalEthernet(void* tPtr, const SharedPtr<Network>& network, cons
 			// 1.4.8: disable compression for unicast as it almost never helps
 			// if (!network->config().disableCompression())
 			//	outp.compress();
-			aqm_enqueue(tPtr, network, outp, true, qosBucket, flowId);
+			aqm_enqueue(tPtr, network, outp, true, qosBucket, network->id(), flowId);
 		}
 		else {
 			Packet outp(toZT, RR->identity.address(), Packet::VERB_EXT_FRAME);
@@ -563,7 +565,7 @@ void Switch::onLocalEthernet(void* tPtr, const SharedPtr<Network>& network, cons
 			// 1.4.8: disable compression for unicast as it almost never helps
 			// if (!network->config().disableCompression())
 			//	outp.compress();
-			aqm_enqueue(tPtr, network, outp, true, qosBucket, flowId);
+			aqm_enqueue(tPtr, network, outp, true, qosBucket, network->id(), flowId);
 		}
 	}
 	else {
@@ -627,7 +629,7 @@ void Switch::onLocalEthernet(void* tPtr, const SharedPtr<Network>& network, cons
 				// 1.4.8: disable compression for unicast as it almost never helps
 				// if (!network->config().disableCompression())
 				//	outp.compress();
-				aqm_enqueue(tPtr, network, outp, true, qosBucket, flowId);
+				aqm_enqueue(tPtr, network, outp, true, qosBucket, network->id(), flowId);
 			}
 			else {
 				RR->t->outgoingNetworkFrameDropped(tPtr, network, from, to, etherType, vlanId, len, "filter blocked (bridge replication)");
@@ -636,10 +638,10 @@ void Switch::onLocalEthernet(void* tPtr, const SharedPtr<Network>& network, cons
 	}
 }
 
-void Switch::aqm_enqueue(void* tPtr, const SharedPtr<Network>& network, Packet& packet, bool encrypt, int qosBucket, int32_t flowId)
+void Switch::aqm_enqueue(void* tPtr, const SharedPtr<Network>& network, Packet& packet, const bool encrypt, const int qosBucket, const uint64_t nwid, const int32_t flowId)
 {
 	if (! network->qosEnabled()) {
-		send(tPtr, packet, encrypt, flowId);
+		send(tPtr, packet, encrypt, nwid, flowId);
 		return;
 	}
 	NetworkQoSControlBlock* nqcb = _netQueueControlBlock[network->id()];
@@ -654,7 +656,7 @@ void Switch::aqm_enqueue(void* tPtr, const SharedPtr<Network>& network, Packet& 
 	}
 	// Don't apply QoS scheduling to ZT protocol traffic
 	if (packet.verb() != Packet::VERB_FRAME && packet.verb() != Packet::VERB_EXT_FRAME) {
-		send(tPtr, packet, encrypt, flowId);
+		send(tPtr, packet, encrypt, nwid, flowId);
 	}
 
 	_aqm_m.lock();
@@ -662,7 +664,7 @@ void Switch::aqm_enqueue(void* tPtr, const SharedPtr<Network>& network, Packet& 
 	// Enqueue packet and move queue to appropriate list
 
 	const Address dest(packet.destination());
-	TXQueueEntry* txEntry = new TXQueueEntry(dest, RR->node->now(), packet, encrypt, flowId);
+	TXQueueEntry* txEntry = new TXQueueEntry(dest, nwid, RR->node->now(), packet, encrypt, flowId);
 
 	ManagedQueue* selectedQueue = nullptr;
 	for (size_t i = 0; i < ZT_AQM_NUM_BUCKETS; i++) {
@@ -842,7 +844,7 @@ void Switch::aqm_dequeue(void* tPtr)
 					queueAtFrontOfList->byteCredit -= len;
 					// Send the packet!
 					queueAtFrontOfList->q.pop_front();
-					send(tPtr, entryToEmit->packet, entryToEmit->encrypt, entryToEmit->flowId);
+					send(tPtr, entryToEmit->packet, entryToEmit->encrypt, entryToEmit->nwid, entryToEmit->flowId);
 					(*nqcb).second->_currEnqueuedPackets--;
 				}
 				if (queueAtFrontOfList) {
@@ -875,7 +877,7 @@ void Switch::aqm_dequeue(void* tPtr)
 					queueAtFrontOfList->byteLength -= len;
 					queueAtFrontOfList->byteCredit -= len;
 					queueAtFrontOfList->q.pop_front();
-					send(tPtr, entryToEmit->packet, entryToEmit->encrypt, entryToEmit->flowId);
+					send(tPtr, entryToEmit->packet, entryToEmit->encrypt, entryToEmit->nwid, entryToEmit->flowId);
 					(*nqcb).second->_currEnqueuedPackets--;
 				}
 				if (queueAtFrontOfList) {
@@ -899,20 +901,20 @@ void Switch::removeNetworkQoSControlBlock(uint64_t nwid)
 	}
 }
 
-void Switch::send(void* tPtr, Packet& packet, bool encrypt, int32_t flowId)
+void Switch::send(void* tPtr, Packet& packet, const bool encrypt, const uint64_t nwid, const int32_t flowId)
 {
 	const Address dest(packet.destination());
 	if (dest == RR->identity.address()) {
 		return;
 	}
 	_recordOutgoingPacketMetrics(packet);
-	if (! _trySend(tPtr, packet, encrypt, flowId)) {
+	if (! _trySend(tPtr, packet, encrypt, nwid, flowId)) {
 		{
 			Mutex::Lock _l(_txQueue_m);
 			if (_txQueue.size() >= ZT_TX_QUEUE_SIZE) {
 				_txQueue.pop_front();
 			}
-			_txQueue.push_back(TXQueueEntry(dest, RR->node->now(), packet, encrypt, flowId));
+			_txQueue.push_back(TXQueueEntry(dest, nwid, RR->node->now(), packet, encrypt, flowId));
 		}
 		if (! RR->topology->getPeer(tPtr, dest)) {
 			requestWhois(tPtr, RR->node->now(), dest);
@@ -937,12 +939,12 @@ void Switch::requestWhois(void* tPtr, const int64_t now, const Address& addr)
 		}
 	}
 
-	const SharedPtr<Peer> upstream(RR->topology->getUpstreamPeer());
+	const SharedPtr<Peer> upstream(RR->topology->getUpstreamPeer(0));
 	if (upstream) {
 		int32_t flowId = ZT_QOS_NO_FLOW;
 		Packet outp(upstream->address(), RR->identity.address(), Packet::VERB_WHOIS);
 		addr.appendTo(outp);
-		send(tPtr, outp, true, flowId);
+		send(tPtr, outp, true, 0, flowId);
 	}
 }
 
@@ -968,7 +970,7 @@ void Switch::doAnythingWaitingForPeer(void* tPtr, const SharedPtr<Peer>& peer)
 		Mutex::Lock _l(_txQueue_m);
 		for (std::list<TXQueueEntry>::iterator txi(_txQueue.begin()); txi != _txQueue.end();) {
 			if (txi->dest == peer->address()) {
-				if (_trySend(tPtr, txi->packet, txi->encrypt, txi->flowId)) {
+				if (_trySend(tPtr, txi->packet, txi->encrypt, 0, txi->flowId)) {
 					_txQueue.erase(txi++);
 				}
 				else {
@@ -995,7 +997,7 @@ unsigned long Switch::doTimerTasks(void* tPtr, int64_t now)
 		Mutex::Lock _l(_txQueue_m);
 
 		for (std::list<TXQueueEntry>::iterator txi(_txQueue.begin()); txi != _txQueue.end();) {
-			if (_trySend(tPtr, txi->packet, txi->encrypt, txi->flowId)) {
+			if (_trySend(tPtr, txi->packet, txi->encrypt, 0, txi->flowId)) {
 				_txQueue.erase(txi++);
 			}
 			else if ((now - txi->creationTime) > ZT_TRANSMIT_QUEUE_TIMEOUT) {
@@ -1067,7 +1069,7 @@ bool Switch::_shouldUnite(const int64_t now, const Address& source, const Addres
 	return false;
 }
 
-bool Switch::_trySend(void* tPtr, Packet& packet, bool encrypt, int32_t flowId)
+bool Switch::_trySend(void* tPtr, Packet& packet, bool encrypt, const uint64_t nwid, const int32_t flowId)
 {
 	SharedPtr<Path> viaPath;
 	const int64_t now = RR->node->now();
@@ -1076,7 +1078,7 @@ bool Switch::_trySend(void* tPtr, Packet& packet, bool encrypt, int32_t flowId)
 	const SharedPtr<Peer> peer(RR->topology->getPeer(tPtr, destination));
 	if (peer) {
 		if ((peer->bondingPolicy() == ZT_BOND_POLICY_BROADCAST) && (packet.verb() == Packet::VERB_FRAME || packet.verb() == Packet::VERB_EXT_FRAME)) {
-			const SharedPtr<Peer> relay(RR->topology->getUpstreamPeer());
+			const SharedPtr<Peer> relay(RR->topology->getUpstreamPeer(nwid));
 			Mutex::Lock _l(peer->_paths_m);
 			for (int i = 0; i < ZT_MAX_PEER_NETWORK_PATHS; ++i) {
 				if (peer->_paths[i].p && peer->_paths[i].p->alive(now)) {
@@ -1090,7 +1092,7 @@ bool Switch::_trySend(void* tPtr, Packet& packet, bool encrypt, int32_t flowId)
 			viaPath = peer->getAppropriatePath(now, false, flowId);
 			if (! viaPath) {
 				peer->tryMemorizedPath(tPtr, now);	 // periodically attempt memorized or statically defined paths, if any are known
-				const SharedPtr<Peer> relay(RR->topology->getUpstreamPeer());
+				const SharedPtr<Peer> relay(RR->topology->getUpstreamPeer(nwid));
 				if ((! relay) || (! (viaPath = relay->getAppropriatePath(now, false, flowId)))) {
 					if (! (viaPath = peer->getAppropriatePath(now, true, flowId))) {
 						return false;

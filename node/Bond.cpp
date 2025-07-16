@@ -13,6 +13,7 @@
 
 #include "Bond.hpp"
 
+#include "Constants.hpp"
 #include "Node.hpp"
 #include "Switch.hpp"
 
@@ -899,7 +900,7 @@ void Bond::sendQOS_MEASUREMENT(void* tPtr, int pathIdx, int64_t localSocket, con
 			RR->node->putPacket(tPtr, localSocket, atAddress, outp.data(), outp.size());
 		}
 		else {
-			RR->sw->send(tPtr, outp, false);
+			RR->sw->send(tPtr, outp, false, 0, ZT_QOS_NO_FLOW);
 		}
 		Metrics::pkt_qos_out++;
 		_paths[pathIdx].packetsReceivedSinceLastQoS = 0;

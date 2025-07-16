@@ -470,7 +470,7 @@ void Peer::sendHELLO(void* tPtr, const int64_t localSocket, const InetAddress& a
 	}
 	else {
 		RR->node->expectReplyTo(outp.packetId());
-		RR->sw->send(tPtr, outp, true);
+		RR->sw->send(tPtr, outp, true, 0, ZT_QOS_NO_FLOW);
 	}
 }
 

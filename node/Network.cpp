@@ -31,7 +31,6 @@
 #include "Trace.hpp"
 
 #include <math.h>
-#include <set>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -808,7 +807,7 @@ bool Network::filterOutgoingPacket(
 							outp.append((uint16_t)etherType);
 							outp.append(frameData, ccLength2);
 							outp.compress();
-							RR->sw->send(tPtr, outp, true);
+							RR->sw->send(tPtr, outp, true, _id, ZT_QOS_NO_FLOW);
 						}
 
 						break;
@@ -846,7 +845,7 @@ bool Network::filterOutgoingPacket(
 			outp.append((uint16_t)etherType);
 			outp.append(frameData, ccLength);
 			outp.compress();
-			RR->sw->send(tPtr, outp, true);
+			RR->sw->send(tPtr, outp, true, _id, ZT_QOS_NO_FLOW);
 		}
 
 		if ((ztDest != ztFinalDest) && (ztFinalDest)) {
@@ -858,7 +857,7 @@ bool Network::filterOutgoingPacket(
 			outp.append((uint16_t)etherType);
 			outp.append(frameData, frameLen);
 			outp.compress();
-			RR->sw->send(tPtr, outp, true);
+			RR->sw->send(tPtr, outp, true, _id, ZT_QOS_NO_FLOW);
 
 			if (_config.remoteTraceTarget) {
 				RR->t->networkFilter(
@@ -985,7 +984,7 @@ int Network::filterIncomingPacket(
 						outp.append((uint16_t)etherType);
 						outp.append(frameData, ccLength2);
 						outp.compress();
-						RR->sw->send(tPtr, outp, true);
+						RR->sw->send(tPtr, outp, true, _id, ZT_QOS_NO_FLOW);
 					}
 					break;
 				}
@@ -1018,7 +1017,7 @@ int Network::filterIncomingPacket(
 			outp.append((uint16_t)etherType);
 			outp.append(frameData, ccLength);
 			outp.compress();
-			RR->sw->send(tPtr, outp, true);
+			RR->sw->send(tPtr, outp, true, _id, ZT_QOS_NO_FLOW);
 		}
 
 		if ((ztDest != ztFinalDest) && (ztFinalDest)) {
@@ -1030,7 +1029,7 @@ int Network::filterIncomingPacket(
 			outp.append((uint16_t)etherType);
 			outp.append(frameData, frameLen);
 			outp.compress();
-			RR->sw->send(tPtr, outp, true);
+			RR->sw->send(tPtr, outp, true, _id, ZT_QOS_NO_FLOW);
 
 			if (_config.remoteTraceTarget) {
 				RR->t->networkFilter(tPtr, *this, rrl, (c) ? &crrl : (Trace::RuleResultLog*)0, c, sourcePeer->address(), ztDest, macSource, macDest, frameData, frameLen, etherType, vlanId, false, true, 0);
@@ -1160,7 +1159,7 @@ uint64_t Network::handleConfigChunk(void* tPtr, const uint64_t packetId, const A
 					if ((*a != source) && (*a != controller())) {
 						Packet outp(*a, RR->identity.address(), Packet::VERB_NETWORK_CONFIG);
 						outp.append(reinterpret_cast<const uint8_t*>(chunk.data()) + start, chunk.size() - start);
-						RR->sw->send(tPtr, outp, true);
+						RR->sw->send(tPtr, outp, true, _id, ZT_QOS_NO_FLOW);
 					}
 				}
 			}
@@ -1471,7 +1470,7 @@ void Network::requestConfiguration(void* tPtr)
 	}
 	outp.compress();
 	RR->node->expectReplyTo(outp.packetId());
-	RR->sw->send(tPtr, outp, true);
+	RR->sw->send(tPtr, outp, true, _id, ZT_QOS_NO_FLOW);
 }
 
 bool Network::gate(void* tPtr, const SharedPtr<Peer>& peer)
@@ -1628,7 +1627,7 @@ Membership::AddCredentialResult Network::addCredential(void* tPtr, const Address
 				outp.append((uint16_t)1);	  // one revocation!
 				rev.serialize(outp);
 				outp.append((uint16_t)0);	// no certificates of ownership
-				RR->sw->send(tPtr, outp, true);
+				RR->sw->send(tPtr, outp, true, _id, ZT_QOS_NO_FLOW);
 			}
 		}
 	}
@@ -1798,7 +1797,7 @@ void Network::_announceMulticastGroupsTo(void* tPtr, const Address& peer, const 
 	for (std::vector<MulticastGroup>::const_iterator mg(allMulticastGroups.begin()); mg != allMulticastGroups.end(); ++mg) {
 		if ((outp->size() + 24) >= ZT_PROTO_MAX_PACKET_LENGTH) {
 			outp->compress();
-			RR->sw->send(tPtr, *outp, true);
+			RR->sw->send(tPtr, *outp, true, _id, ZT_QOS_NO_FLOW);
 			outp->reset(peer, RR->identity.address(), Packet::VERB_MULTICAST_LIKE);
 		}
 
@@ -1810,7 +1809,7 @@ void Network::_announceMulticastGroupsTo(void* tPtr, const Address& peer, const 
 
 	if (outp->size() > ZT_PROTO_MIN_PACKET_LENGTH) {
 		outp->compress();
-		RR->sw->send(tPtr, *outp, true);
+		RR->sw->send(tPtr, *outp, true, _id, ZT_QOS_NO_FLOW);
 	}
 
 	delete outp;

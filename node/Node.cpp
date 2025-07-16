@@ -699,7 +699,7 @@ int Node::sendUserMessage(void* tptr, uint64_t dest, uint64_t typeId, const void
 			outp.append(typeId);
 			outp.append(data, len);
 			outp.compress();
-			RR->sw->send(tptr, outp, true);
+			RR->sw->send(tptr, outp, true, 0, ZT_QOS_NO_FLOW);
 			return 1;
 		}
 	}
@@ -825,7 +825,7 @@ void Node::ncSendConfig(uint64_t nwid, uint64_t requestPacketId, const Address& 
 					outp.append(sig.data, ZT_ECC_SIGNATURE_LEN);
 
 					outp.compress();
-					RR->sw->send((void*)0, outp, true);
+					RR->sw->send((void*)0, outp, true, nwid, ZT_QOS_NO_FLOW);
 					chunkIndex += chunkLen;
 				}
 			}
@@ -855,7 +855,7 @@ void Node::ncSendRevocation(const Address& destination, const Revocation& rev)
 		outp.append((uint16_t)1);
 		rev.serialize(outp);
 		outp.append((uint16_t)0);
-		RR->sw->send((void*)0, outp, true);
+		RR->sw->send((void*)0, outp, true, rev.networkId(), ZT_QOS_NO_FLOW);
 	}
 }
 
@@ -911,7 +911,7 @@ void Node::ncSendError(uint64_t nwid, uint64_t requestPacketId, const Address& d
 			outp.append(errorData, errorDataSize);
 		}
 
-		RR->sw->send((void*)0, outp, true);
+		RR->sw->send((void*)0, outp, true, nwid, ZT_QOS_NO_FLOW);
 	}	// else we can't send an ERROR() in response to nothing, so discard
 }
 

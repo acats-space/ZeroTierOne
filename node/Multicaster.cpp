@@ -272,7 +272,7 @@ void Multicaster::send(void* tPtr, int64_t now, const SharedPtr<Network>& networ
 				Address explicitGatherPeers[16];
 				unsigned int numExplicitGatherPeers = 0;
 
-				SharedPtr<Peer> bestRoot(RR->topology->getUpstreamPeer());
+				SharedPtr<Peer> bestRoot(RR->topology->getUpstreamPeer(network->id()));
 				if (bestRoot) {
 					explicitGatherPeers[numExplicitGatherPeers++] = bestRoot->address();
 				}
@@ -312,7 +312,7 @@ void Multicaster::send(void* tPtr, int64_t now, const SharedPtr<Network>& networ
 						com->serialize(outp);
 					}
 					RR->node->expectReplyTo(outp.packetId());
-					RR->sw->send(tPtr, outp, true);
+					RR->sw->send(tPtr, outp, true, network->id(), ZT_QOS_NO_FLOW);
 					Metrics::pkt_multicast_gather_out++;
 				}
 			}

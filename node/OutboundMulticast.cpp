@@ -16,7 +16,6 @@
 #include "Constants.hpp"
 #include "Network.hpp"
 #include "Node.hpp"
-#include "Peer.hpp"
 #include "RuntimeEnvironment.hpp"
 #include "Switch.hpp"
 #include "Topology.hpp"
@@ -87,7 +86,7 @@ void OutboundMulticast::sendOnly(const RuntimeEnvironment* RR, void* tPtr, const
 		_packet.setDestination(toAddr);
 		RR->node->expectReplyTo(_packet.packetId());
 		_tmp = _packet;
-		RR->sw->send(tPtr, _tmp, true);
+		RR->sw->send(tPtr, _tmp, true, _nwid, ZT_QOS_NO_FLOW);
 	}
 }
 

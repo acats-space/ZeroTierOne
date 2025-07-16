@@ -377,6 +377,28 @@ class NetworkConfig {
 		return false;
 	}
 
+	inline std::vector<Address> alwaysContactAddresses() const
+	{
+		std::vector<Address> r;
+		for (unsigned int i = 0; i < specialistCount; ++i) {
+			if ((specialists[i] & (ZT_NETWORKCONFIG_SPECIALIST_TYPE_NETWORK_RELAY | ZT_NETWORKCONFIG_SPECIALIST_TYPE_MULTICAST_REPLICATOR)) != 0) {
+				r.push_back(Address(specialists[i]));
+			}
+		}
+		return r;
+	}
+
+	inline unsigned int alwaysContactAddresses(Address ac[ZT_MAX_NETWORK_SPECIALISTS]) const
+	{
+		unsigned int c = 0;
+		for (unsigned int i = 0; i < specialistCount; ++i) {
+			if ((specialists[i] & (ZT_NETWORKCONFIG_SPECIALIST_TYPE_NETWORK_RELAY | ZT_NETWORKCONFIG_SPECIALIST_TYPE_MULTICAST_REPLICATOR)) != 0) {
+				ac[c++] = specialists[i];
+			}
+		}
+		return c;
+	}
+
 	inline void alwaysContactAddresses(Hashtable<Address, std::vector<InetAddress> >& a) const
 	{
 		for (unsigned int i = 0; i < specialistCount; ++i) {

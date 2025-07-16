@@ -24,11 +24,9 @@
 #include "Packet.hpp"
 #include "SharedPtr.hpp"
 #include "Topology.hpp"
-#include "Utils.hpp"
 
 #include <list>
 #include <map>
-#include <set>
 #include <vector>
 
 /* Ethernet frame types that might be relevant to us */
@@ -124,7 +122,7 @@ class Switch {
 	 * @param encrypt Encrypt packet payload? (always true except for HELLO)
 	 * @param qosBucket Which bucket the rule-system determined this packet should fall into
 	 */
-	void aqm_enqueue(void* tPtr, const SharedPtr<Network>& network, Packet& packet, bool encrypt, int qosBucket, int32_t flowId = ZT_QOS_NO_FLOW);
+	void aqm_enqueue(void* tPtr, const SharedPtr<Network>& network, Packet& packet, const bool encrypt, const int qosBucket, const uint64_t nwid, const int32_t flowId /* = ZT_QOS_NO_FLOW*/);
 
 	/**
 	 * Performs a single AQM cycle and dequeues and transmits all eligible packets on all networks
@@ -169,8 +167,9 @@ class Switch {
 	 * @param tPtr Thread pointer to be handed through to any callbacks called as a result of this call
 	 * @param packet Packet to send (buffer may be modified)
 	 * @param encrypt Encrypt packet payload? (always true except for HELLO)
+	 * @param nwid Network ID to which this packet is related or 0 if none
 	 */
-	void send(void* tPtr, Packet& packet, bool encrypt, int32_t flowId = ZT_QOS_NO_FLOW);
+	void send(void* tPtr, Packet& packet, const bool encrypt, const uint64_t nwid, const int32_t flowId /* = ZT_QOS_NO_FLOW*/);
 
 	/**
 	 * Request WHOIS on a given address
@@ -205,7 +204,7 @@ class Switch {
 
   private:
 	bool _shouldUnite(const int64_t now, const Address& source, const Address& destination);
-	bool _trySend(void* tPtr, Packet& packet, bool encrypt, int32_t flowId = ZT_QOS_NO_FLOW);	// packet is modified if return is true
+	bool _trySend(void* tPtr, Packet& packet, bool encrypt, const uint64_t nwid, const int32_t flowId /* = ZT_QOS_NO_FLOW*/);
 	void _sendViaSpecificPath(void* tPtr, SharedPtr<Peer> peer, SharedPtr<Path> viaPath, uint16_t userSpecifiedMtu, int64_t now, Packet& packet, bool encrypt, int32_t flowId);
 	void _recordOutgoingPacketMetrics(const Packet& p);
 
@@ -260,11 +259,12 @@ class Switch {
 		TXQueueEntry()
 		{
 		}
-		TXQueueEntry(Address d, uint64_t ct, const Packet& p, bool enc, int32_t fid) : dest(d), creationTime(ct), packet(p), encrypt(enc), flowId(fid)
+		TXQueueEntry(Address d, uint64_t nwid, uint64_t ct, const Packet& p, bool enc, int32_t fid) : dest(d), nwid(nwid), creationTime(ct), packet(p), encrypt(enc), flowId(fid)
 		{
 		}
 
 		Address dest;
+		uint64_t nwid;
 		uint64_t creationTime;
 		Packet packet;	 // unencrypted/unMAC'd packet -- this is done at send time
 		bool encrypt;
