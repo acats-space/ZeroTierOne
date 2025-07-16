@@ -790,7 +790,7 @@ void CV2::membersDbWatcher()
 	std::string stream = "member_" + _myAddressStr;
 
 	fprintf(stderr, "Listening to member stream: %s\n", stream.c_str());
-	MemberNotificationReceiver m(this, *c->c, stream);
+	MemberNotificationReceiver<CV2> m(this, *c->c, stream);
 
 	while (_run == 1) {
 		c->c->await_notification(5, 0);
@@ -809,7 +809,7 @@ void CV2::networksDbWatcher()
 
 	auto c = _pool->borrow();
 
-	NetworkNotificationReceiver n(this, *c->c, stream);
+	NetworkNotificationReceiver<CV2> n(this, *c->c, stream);
 
 	while (_run == 1) {
 		c->c->await_notification(5, 0);

@@ -1209,7 +1209,7 @@ void CV1::_membersWatcher_Postgres()
 	std::string stream = "member_" + _myAddressStr;
 
 	fprintf(stderr, "Listening to member stream: %s\n", stream.c_str());
-	MemberNotificationReceiver m(this, *c->c, stream);
+	MemberNotificationReceiver<CV1> m(this, *c->c, stream);
 
 	while (_run == 1) {
 		c->c->await_notification(5, 0);
@@ -1316,7 +1316,7 @@ void CV1::_networksWatcher_Postgres()
 
 	auto c = _pool->borrow();
 
-	NetworkNotificationReceiver n(this, *c->c, stream);
+	NetworkNotificationReceiver<CV1> n(this, *c->c, stream);
 
 	while (_run == 1) {
 		auto provider = opentelemetry::trace::Provider::GetTracerProvider();
@@ -2022,7 +2022,7 @@ void CV1::onlineNotification_Redis()
 
 		fprintf(stderr, "onlineNotification ran in %llu ms\n", total);
 		span->End();
-		
+
 		std::this_thread::sleep_for(std::chrono::seconds(5));
 	}
 }

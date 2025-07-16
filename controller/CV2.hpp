@@ -31,6 +31,9 @@
 namespace ZeroTier {
 
 class CV2 : public DB {
+	friend class MemberNotificationReceiver<CV2>;
+	friend class NetworkNotificationReceiver<CV2>;
+
   public:
 	CV2(const Identity& myId, const char* path, int listenPort);
 	virtual ~CV2();
