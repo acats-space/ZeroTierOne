@@ -136,8 +136,10 @@ void CV2::_memberChanged(nlohmann::json& old, nlohmann::json& memberConfig, bool
 		}
 	}
 
-	// fprintf(stderr, "CV2::_memberChanged\n");
-	DB::_memberChanged(old, memberConfig, notifyListeners);
+	if (notifyListeners) {
+		// fprintf(stderr, "CV2::_memberChanged\n");
+		DB::_memberChanged(old, memberConfig, notifyListeners);
+	}
 }
 
 void CV2::_networkChanged(nlohmann::json& old, nlohmann::json& networkConfig, bool notifyListeners)
@@ -164,8 +166,10 @@ void CV2::_networkChanged(nlohmann::json& old, nlohmann::json& networkConfig, bo
 		}
 	}
 
-	// fprintf(stderr, "CV2::_networkChanged\n");
-	DB::_networkChanged(old, networkConfig, false);
+	if (notifyListeners) {
+		// fprintf(stderr, "CV2::_networkChanged\n");
+		DB::_networkChanged(old, networkConfig, false);
+	}
 }
 
 bool CV2::save(nlohmann::json& record, bool notifyListeners)
