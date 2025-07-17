@@ -16,24 +16,20 @@
 #include <stdlib.h>
 #include <string.h>
 #include <time.h>
-#include <type_traits>
 
 #ifndef _WIN32
 #include <sys/time.h>
 #endif
 #include "../include/ZeroTierOne.h"
-#include "../version.h"
 #include "EmbeddedNetworkController.hpp"
 #include "FileDB.hpp"
 #include "LFDB.hpp"
 
 #include <algorithm>
 #include <cctype>
-#include <iomanip>
 #include <map>
 #include <memory>
 #include <sstream>
-#include <stdexcept>
 #include <sys/types.h>
 #include <thread>
 #include <utility>
@@ -44,7 +40,6 @@
 
 #include "../node/CertificateOfMembership.hpp"
 #include "../node/Dictionary.hpp"
-#include "../node/MAC.hpp"
 #include "../node/NetworkConfig.hpp"
 #include "../node/Node.hpp"
 
@@ -752,6 +747,24 @@ std::string EmbeddedNetworkController::networkUpdateFromPostData(uint64_t networ
 			nv6m["6plane"] = false;
 		}
 		network["v6AssignMode"] = nv6m;
+	}
+
+	if (b.count("relays")) {
+		json nrelays = json::array();
+		char rtmp[64];
+		json& relays = b["relays"];
+		if (relays.is_array()) {
+			for (unsigned long i = 0; i < relays.size(); ++i) {
+				json& relay = relays[i];
+				if (relay.is_string()) {
+					nrelays.push_back(Address(Utils::hexStrToU64(OSUtils::jsonString(relay, "0").c_str()) & 0xffffffffffULL).toString(rtmp));
+				}
+			}
+		}
+		if (nrelays.size() > 0)
+			network["relays"] = nrelays;
+		else
+			network.erase("relays");
 	}
 
 	if (b.count("routes")) {
@@ -1815,6 +1828,7 @@ void EmbeddedNetworkController::_request(uint64_t nwid, const InetAddress& fromA
 	json& v6AssignMode = network["v6AssignMode"];
 	json& ipAssignmentPools = network["ipAssignmentPools"];
 	json& routes = network["routes"];
+	json& relays = network["relays"];
 	json& rules = network["rules"];
 	json& capabilities = network["capabilities"];
 	json& tags = network["tags"];
@@ -1942,6 +1956,15 @@ void EmbeddedNetworkController::_request(uint64_t nwid, const InetAddress& fromA
 						*(reinterpret_cast<InetAddress*>(&(r->via))) = v;
 					++nc->routeCount;
 				}
+			}
+		}
+	}
+
+	if (relays.is_array()) {
+		for (unsigned long i = 0; i < relays.size(); ++i) {
+			Address relay(Address(Utils::hexStrToU64(OSUtils::jsonString(relays[i], "0").c_str()) & 0xffffffffffULL));
+			if (! relay.isReserved()) {
+				nc->addSpecialist(relay, ZT_NETWORKCONFIG_SPECIALIST_TYPE_NETWORK_RELAY);
 			}
 		}
 	}

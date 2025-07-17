@@ -14,21 +14,14 @@
 #ifndef ZT_SQLITENETWORKCONTROLLER_HPP
 #define ZT_SQLITENETWORKCONTROLLER_HPP
 
-#include "../node/Address.hpp"
 #include "../node/Constants.hpp"
 #include "../node/InetAddress.hpp"
 #include "../node/NetworkController.hpp"
-#include "../node/Utils.hpp"
 #include "../osdep/BlockingQueue.hpp"
-#include "../osdep/OSUtils.hpp"
-#include "../osdep/Thread.hpp"
 #include "DB.hpp"
 #include "DBMirrorSet.hpp"
 
-#include <atomic>
 #include <cpp-httplib/httplib.h>
-#include <list>
-#include <map>
 #include <nlohmann/json.hpp>
 #include <set>
 #include <stdint.h>
