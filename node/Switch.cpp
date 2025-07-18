@@ -83,10 +83,13 @@ void Switch::onRemotePacket(void* tPtr, const int64_t localSocket, const InetAdd
 				const Address destination(fragment.destination());
 
 				if (destination != RR->identity.address()) {
-					// Fragment is someone else's.
+					// RELAY: fragment is for a different node, so maybe send it there if we should relay.
+
+					/*
 					if ((! RR->topology->amUpstream()) && (! path->trustEstablished(now))) {
 						return;
 					}
+					*/
 
 					if (fragment.hops() < ZT_RELAY_MAX_HOPS) {
 						fragment.incrementHops();
@@ -104,7 +107,8 @@ void Switch::onRemotePacket(void* tPtr, const int64_t localSocket, const InetAdd
 					}
 				}
 				else {
-					// Fragment looks like ours
+					// RECEIVE: fragment appears to be ours (this is validated in cryptographic auth after assembly)
+
 					const uint64_t fragmentPacketId = fragment.packetId();
 					const unsigned int fragmentNumber = fragment.fragmentNumber();
 					const unsigned int totalFragments = fragment.totalFragments();
@@ -165,8 +169,9 @@ void Switch::onRemotePacket(void* tPtr, const int64_t localSocket, const InetAdd
 				}
 
 				if (destination != RR->identity.address()) {
-					// Not our packet head.
-					if ((! RR->topology->amUpstream()) && (! path->trustEstablished(now)) && (source != RR->identity.address())) {
+					// RELAY: packet head is for a different node, so maybe send it there if we should relay.
+
+					if (/* (! RR->topology->amUpstream()) && (! path->trustEstablished(now)) && */ (source != RR->identity.address())) {
 						return;
 					}
 
@@ -197,7 +202,7 @@ void Switch::onRemotePacket(void* tPtr, const int64_t localSocket, const InetAdd
 					}
 				}
 				else if ((reinterpret_cast<const uint8_t*>(data)[ZT_PACKET_IDX_FLAGS] & ZT_PROTO_FLAG_FRAGMENTED) != 0) {
-					// Packet is the head of a fragmented packet series
+					// RECEIVE: packet head appears to be ours (this is validated in cryptographic auth after assembly)
 
 					const uint64_t packetId =
 						((((uint64_t)reinterpret_cast<const uint8_t*>(data)[0]) << 56) | (((uint64_t)reinterpret_cast<const uint8_t*>(data)[1]) << 48) | (((uint64_t)reinterpret_cast<const uint8_t*>(data)[2]) << 40)
@@ -242,7 +247,8 @@ void Switch::onRemotePacket(void* tPtr, const int64_t localSocket, const InetAdd
 					}	// else this is a duplicate head, ignore
 				}
 				else {
-					// Packet is unfragmented, so just process it
+					// RECEIVE: unfragmented packet appears to be ours (this is validated in cryptographic auth after assembly)
+
 					IncomingPacket packet(data, len, path, now);
 					if (! packet.tryDecode(RR, tPtr, flowId)) {
 						RXQueueEntry* const rq = _nextRXQueueEntry();
