@@ -106,9 +106,9 @@ extern "C" {
 
 using json = nlohmann::json;
 
-#include "../controller/EmbeddedNetworkController.hpp"
-#include "../controller/PostgreSQL.hpp"
-#include "../controller/Redis.hpp"
+#include "../nonfree/controller/EmbeddedNetworkController.hpp"
+#include "../nonfree/controller/PostgreSQL.hpp"
+#include "../nonfree/controller/Redis.hpp"
 #include "../osdep/EthernetTap.hpp"
 #ifdef __WINDOWS__
 #include "../osdep/WindowsEthernetTap.hpp"

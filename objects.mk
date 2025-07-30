@@ -34,15 +34,15 @@ CORE_OBJS=\
 	osdep/OSUtils.o
 
 ONE_OBJS=\
-	controller/EmbeddedNetworkController.o \
-	controller/DBMirrorSet.o \
-	controller/DB.o \
-	controller/FileDB.o \
-	controller/LFDB.o \
-	controller/CtlUtil.o \
-	controller/PostgreSQL.o \
-	controller/CV1.o \
-	controller/CV2.o \
+	nonfree/controller/EmbeddedNetworkController.o \
+	nonfree/controller/DBMirrorSet.o \
+	nonfree/controller/DB.o \
+	nonfree/controller/FileDB.o \
+	nonfree/controller/LFDB.o \
+	nonfree/controller/CtlUtil.o \
+	nonfree/controller/PostgreSQL.o \
+	nonfree/controller/CV1.o \
+	nonfree/controller/CV2.o \
 	osdep/EthernetTap.o \
 	osdep/ManagedRoute.o \
 	osdep/Http.o \

@@ -181,7 +181,7 @@ selftest:	$(CORE_OBJS) $(ONE_OBJS) selftest.o
 zerotier-selftest: selftest
 
 clean:
-	rm -rf *.a *.o node/*.o controller/*.o osdep/*.o service/*.o ext/http-parser/*.o build-* zerotier-one zerotier-idtool zerotier-selftest zerotier-cli $(ONE_OBJS) $(CORE_OBJS)
+	rm -rf *.a *.o node/*.o nonfree/controller/*.o osdep/*.o service/*.o ext/http-parser/*.o build-* zerotier-one zerotier-idtool zerotier-selftest zerotier-cli $(ONE_OBJS) $(CORE_OBJS)
 
 debug:	FORCE
 	$(MAKE) -j ZT_DEBUG=1
